@@ -1,0 +1,21 @@
+BluBox 360 0.11.0 public alpha
+
+BluBox 360 is an independent open-source frontend around an Android ARM64,
+Xenia-derived emulator core. It is not affiliated with, endorsed by, or
+distributed by Microsoft or Xbox.
+
+The BluBox frontend is distributed under GNU GPL version 2. The complete
+license is bundled at assets/licenses/BluBox-GPL-2.0.txt.
+
+Core lineage and source:
+- XenDroid: https://github.com/rfandango/XenDroid
+- Xenia: https://github.com/xenia-project/xenia
+- Xenia game patches: https://github.com/xenia-canary/game-patches
+
+Xenia is distributed under the BSD 3-Clause License. The complete license is
+bundled at assets/licenses/xenia-BSD-3-Clause.txt. Additional third-party
+credits and license links are bundled at assets/licenses.html by the emulator
+core.
+
+BluBox includes no games, encryption keys, Xbox firmware, or Microsoft code.
+Use only game backups and content you are legally permitted to use.

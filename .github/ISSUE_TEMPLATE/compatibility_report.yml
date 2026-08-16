@@ -1,0 +1,75 @@
+name: Game compatibility report
+description: Share one Xbox 360 game's result on one Android device.
+title: "[Compatibility] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit one game and one device per report. Do not attach game files, firmware, keys, or copyrighted assets.
+  - type: input
+    id: game
+    attributes:
+      label: Game title and region
+      placeholder: Fable II, Europe
+    validations:
+      required: true
+  - type: input
+    id: title_id
+    attributes:
+      label: Title ID
+      placeholder: 4D5307F1
+    validations:
+      required: true
+  - type: dropdown
+    id: rating
+    attributes:
+      label: Result
+      options:
+        - Playable
+        - In-game
+        - Intro
+        - Menu
+        - Boots
+        - Broken
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: BluBox version
+      placeholder: 0.11.0-alpha
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, Android, chipset, and GPU
+      placeholder: AYN Thor Pro, Android 13, Snapdragon ..., Adreno ...
+    validations:
+      required: true
+  - type: input
+    id: format
+    attributes:
+      label: Game format
+      placeholder: ISO, ZAR, or extracted default.xex
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Graphics and performance settings
+      description: List mode, resolution, driver, Low Heat Mode, FPS limit, and changed options.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Test result
+      description: Include play time, FPS, temperature, graphics, audio, controls, and crashes.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or xe.log
+      description: Drag in a safe screenshot or log with personal paths removed.

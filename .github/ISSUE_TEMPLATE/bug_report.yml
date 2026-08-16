@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a BluBox app, launch, controller, storage, save, or crash problem.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing BluBox 360. Do not attach games, firmware, keys, or copyrighted files.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I tested the latest public alpha.
+          required: true
+        - label: I searched for an existing report.
+          required: true
+        - label: I removed personal information from screenshots and logs.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: BluBox version
+      placeholder: 0.11.0-alpha
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, Android, chipset, and GPU
+      placeholder: AYN Thor Pro, Android 13, Snapdragon ..., Adreno ...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open BluBox
+        2. Select ...
+        3. Press ...
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Relevant settings
+      description: Graphics mode, driver, controller profile, Low Heat Mode, and other changed settings.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or xe.log
+      description: Drag in a safe screenshot or log with personal paths removed.

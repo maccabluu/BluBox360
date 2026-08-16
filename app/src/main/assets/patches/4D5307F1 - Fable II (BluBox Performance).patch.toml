@@ -1,0 +1,17 @@
+# BluBox 360 recovery patch record for Fable II.
+# Address and value credited to Guy and the xenia-canary game-patches project.
+# All BluBox memory patches remain disabled in 0.11.0 for stability.
+
+title_name = "Fable II"
+title_id = "4D5307F1"
+hash = "4145F96D2DEE2AB5"
+
+[[patch]]
+name = "BluBox visual repair - Disable Texture Morphing (disabled)"
+desc = "Disabled by the 0.11.0 public alpha stability update."
+author = "Guy / BluBox visual repair"
+is_enabled = false
+
+[[patch.be16]]
+address = 0x8220ef10
+value = 0x4280

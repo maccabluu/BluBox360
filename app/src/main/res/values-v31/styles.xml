@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="BootTheme" parent="AppTheme">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@drawable/library_background</item>
+        <item name="android:windowSplashScreenBackground">@color/blubox_navy</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/blubox_logo</item>
+    </style>
+</resources>

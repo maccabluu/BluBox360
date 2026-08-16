@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest a focused improvement for BluBox 360.
+title: "[Feature] "
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched for an existing request.
+          required: true
+        - label: This request does not ask for games, firmware, keys, or copyrighted files.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Explain the user problem before describing a design.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested behavior
+      description: Describe the smallest useful change.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Device or game context
+      description: Add relevant device, game, controller, or workflow details.

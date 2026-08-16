@@ -1,0 +1,160 @@
+diff --git a/emulator-core/build.gradle b/emulator-core/build.gradle
+index 42e6d0d..92465b9 100644
+--- a/emulator-core/build.gradle
++++ b/emulator-core/build.gradle
+@@ -1,6 +1,4 @@
+-plugins {
+-    alias(libs.plugins.android.library)
+-}
++apply plugin: 'com.android.library'
+ 
+ // :emulator-core owns the native build (CMake -> libe.so + libhardware_ProcessorInfo.so)
+ // and the JNI-bound Java classes, so the heavy native tree builds exactly once and
+@@ -12,8 +10,8 @@ plugins {
+ // unqualified R is resolved via `import xendroid.compose.core.R;`.
+ android {
+     namespace 'xendroid.compose.core'
+-    compileSdk 35
+-    ndkVersion '29.0.14206865'
++    compileSdk 36
++    ndkVersion '27.2.12479018'
+ 
+     defaultConfig {
+         // 29+ gives native ELF TLS (thread_local = register read, not an emutls call).
+@@ -69,10 +67,3 @@ android {
+         }
+     }
+ }
+-
+-dependencies {
+-    // `api` so consumers (the JNI bridge uses DocumentFile; Application uses WindowCompat)
+-    // get these transitively.
+-    api libs.appcompat
+-    api libs.documentfile
+-}
+diff --git a/emulator-core/src/main/cpp/xenia/src/xenia/cpu/xex_module.h b/emulator-core/src/main/cpp/xenia/src/xenia/cpu/xex_module.h
+index a2b6750..05a42da 100644
+--- a/emulator-core/src/main/cpp/xenia/src/xenia/cpu/xex_module.h
++++ b/emulator-core/src/main/cpp/xenia/src/xenia/cpu/xex_module.h
+@@ -49,8 +49,15 @@ static_assert(sizeof(InfoCacheFlags) == 4,
+ inline void AtomicSetInfoCacheFlags(InfoCacheFlags* slot, InfoCacheFlags bits) {
+   uint32_t mask;
+   std::memcpy(&mask, &bits, sizeof(mask));
++#if defined(__ANDROID__)
++  // libc++ in Android NDK r27 doesn't provide std::atomic_ref yet. Clang's
++  // atomic builtin has the same relaxed fetch-or semantics and works on the
++  // naturally aligned 32-bit word stored in the shared mmap.
++  __atomic_fetch_or(reinterpret_cast<uint32_t*>(slot), mask, __ATOMIC_RELAXED);
++#else
+   std::atomic_ref<uint32_t>(*reinterpret_cast<uint32_t*>(slot))
+       .fetch_or(mask, std::memory_order_relaxed);
++#endif
+ }
+ 
+ struct XexInfoCache {
+diff --git a/emulator-core/src/main/cpp/xenia/src/xenia/kernel/xam/xam_ui.cc b/emulator-core/src/main/cpp/xenia/src/xenia/kernel/xam/xam_ui.cc
+index a378fcd..22b0429 100644
+--- a/emulator-core/src/main/cpp/xenia/src/xenia/kernel/xam/xam_ui.cc
++++ b/emulator-core/src/main/cpp/xenia/src/xenia/kernel/xam/xam_ui.cc
+@@ -87,7 +87,7 @@ X_RESULT xeXamDispatchDialog(T* dialog,
+     return result;
+   };
+   auto post = []() {
+-    std::jthread t([] {
++    std::thread t([] {
+       xe::threading::Sleep(kUIDelayMillis);
+       kernel_state()->BroadcastNotification(kXNotificationSystemUI, false);
+     });
+@@ -154,7 +154,7 @@ X_RESULT xeXamDispatchHeadless(std::function<X_RESULT()> run_callback,
+     xe::threading::Sleep(std::chrono::milliseconds(25));
+   };
+   auto post = []() {
+-    std::jthread t([]() {
++    std::thread t([]() {
+       xe::threading::Sleep(kUIDelayMillis);
+       kernel_state()->BroadcastNotification(kXNotificationSystemUI, false);
+     });
+diff --git a/emulator-core/src/main/java/xendroid/compose/DocumentsProvider.java b/emulator-core/src/main/java/xendroid/compose/DocumentsProvider.java
+index a69d35e..43fe688 100644
+--- a/emulator-core/src/main/java/xendroid/compose/DocumentsProvider.java
++++ b/emulator-core/src/main/java/xendroid/compose/DocumentsProvider.java
+@@ -14,7 +14,6 @@ import android.os.Build;
+ import android.os.CancellationSignal;
+ import android.os.ParcelFileDescriptor;
+ 
+-import androidx.annotation.Nullable;
+ 
+ import java.io.FileInputStream;
+ import java.io.FileNotFoundException;
+@@ -202,7 +201,7 @@ public class DocumentsProvider extends android.provider.DocumentsProvider{
+     }
+ 
+     @Override
+-    public ParcelFileDescriptor openDocument(String documentId, String mode, @Nullable CancellationSignal signal) throws FileNotFoundException {
++    public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal) throws FileNotFoundException {
+ 
+         final File file = getFileForDocId(documentId);
+         final int accessMode = ParcelFileDescriptor.parseMode(mode);
+diff --git a/emulator-core/src/main/java/xendroid/compose/Utils.java b/emulator-core/src/main/java/xendroid/compose/Utils.java
+index a8d9b69..60dd777 100644
+--- a/emulator-core/src/main/java/xendroid/compose/Utils.java
++++ b/emulator-core/src/main/java/xendroid/compose/Utils.java
+@@ -8,15 +8,15 @@ import android.database.Cursor;
+ import android.graphics.Bitmap;
+ import android.net.Uri;
+ import android.os.ParcelFileDescriptor;
++import android.os.Build;
+ import android.provider.DocumentsContract;
++import android.view.View;
+ import android.view.Window;
++import android.view.WindowInsets;
++import android.view.WindowInsetsController;
+ import android.view.WindowManager;
+ import android.widget.Toast;
+ 
+-import androidx.core.view.WindowCompat;
+-import androidx.core.view.WindowInsetsCompat;
+-import androidx.core.view.WindowInsetsControllerCompat;
+-
+ import org.json.JSONObject;
+ 
+ import java.io.ByteArrayOutputStream;
+@@ -46,12 +46,28 @@ public class Utils {
+     }
+ 
+     public static void enable_fullscreen(Window w){
+-        WindowCompat.setDecorFitsSystemWindows(w,false);
+-        WindowInsetsControllerCompat wic=WindowCompat.getInsetsController(w,w.getDecorView());
+-        wic.hide(WindowInsetsCompat.Type.systemBars());
+-        wic.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++            w.setDecorFitsSystemWindows(false);
++            WindowInsetsController controller = w.getInsetsController();
++            if (controller != null) {
++                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
++                controller.setSystemBarsBehavior(
++                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
++            }
++        } else {
++            w.getDecorView().setSystemUiVisibility(
++                    View.SYSTEM_UI_FLAG_FULLSCREEN |
++                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
++                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
++                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
++                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
++                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
++        }
+         WindowManager.LayoutParams lp=w.getAttributes();
+-        lp.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
++            lp.layoutInDisplayCutoutMode=
++                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
++        }
+         w.setAttributes(lp);
+     }
+     static String getFileNameFromUri(Uri uri) {
+@@ -249,4 +265,3 @@ public class Utils {
+         }
+     }
+ }
+-

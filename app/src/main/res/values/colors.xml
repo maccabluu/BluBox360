@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#061126</color>
+    <color name="panel">#0C1B34</color>
+    <color name="panel_alt">#122746</color>
+    <color name="text">#F7FAFF</color>
+    <color name="muted">#A9BAD1</color>
+    <color name="accent">#1688FF</color>
+    <color name="accent_dark">#0757D4</color>
+    <color name="cyan">#34D8FF</color>
+    <color name="warn">#FFC857</color>
+    <color name="danger">#FF6678</color>
+    <color name="success">#45D99A</color>
+    <color name="blubox_navy">#061126</color>
+    <color name="blubox_blue">#1688FF</color>
+    <color name="blubox_cyan">#34D8FF</color>
+    <color name="blubox_white">#F7FAFF</color>
+</resources>

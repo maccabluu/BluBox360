@@ -1,0 +1,3 @@
+sdk.dir=/absolute/path/to/Android/Sdk
+# Optional when CMake 3.30.3 isn't registered in the Android SDK:
+# cmake.dir=/absolute/path/to/cmake-3.30.3
