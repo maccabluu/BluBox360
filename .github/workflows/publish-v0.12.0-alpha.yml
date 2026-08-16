@@ -1,0 +1,40 @@
+name: Publish BluBox 360 v0.12.0 alpha
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.12.0-alpha.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the public alpha
+        uses: actions/checkout@v4
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v0.12.0-alpha"
+          apk="releases/v0.12.0-alpha/BluBox-360-0.12.0-alpha-arm64.apk"
+          checksum="releases/v0.12.0-alpha/SHA256SUMS.txt"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" "$checksum" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" "$checksum" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "BluBox 360 0.12.0 public alpha" \
+              --notes-file RELEASE_NOTES_0.12.0-alpha.md \
+              --prerelease
+          fi
