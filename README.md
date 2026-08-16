@@ -13,7 +13,7 @@ and its saves are not replaced.
 
 ## Download the public alpha
 
-[Download BluBox 360 0.12.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/raw/main/releases/v0.12.0-alpha/BluBox-360-0.12.0-alpha-arm64.apk)
+[Download BluBox 360 0.12.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.12.0-alpha/BluBox-360-0.12.0-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required. Back up profiles and saves
 before updating. The APK uses the same alpha signing certificate as earlier
