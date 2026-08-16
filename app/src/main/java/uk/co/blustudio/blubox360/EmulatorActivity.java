@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.Process;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.Display;
 import android.view.InputDevice;
@@ -31,6 +32,9 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import xendroid.compose.Application;
 import xendroid.compose.Emulator;
@@ -72,6 +76,9 @@ public final class EmulatorActivity extends Activity implements SurfaceHolder.Ca
     private static final int DIGITAL_OUTPUT_COUNT = 16;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final ExecutorService telemetryExecutor = Executors.newSingleThreadExecutor(
+            runnable -> new Thread(runnable, "BluBox-device-telemetry"));
+    private final AtomicBoolean temperatureReadPending = new AtomicBoolean();
     private final boolean[] axisPressed = new boolean[24];
     private final int[] axisValue = new int[24];
     private final boolean[] leftMappedOutputs = new boolean[DIGITAL_OUTPUT_COUNT];
@@ -122,6 +129,8 @@ public final class EmulatorActivity extends Activity implements SurfaceHolder.Ca
     private PowerManager powerManager;
     private PowerManager.OnThermalStatusChangedListener thermalListener;
     private boolean thermalShutdown;
+    private volatile float deviceTemperatureC = Float.NaN;
+    private long lastTemperatureReadMs;
 
     private final DisplayManager.DisplayListener displayListener =
             new DisplayManager.DisplayListener() {
@@ -141,17 +150,52 @@ public final class EmulatorActivity extends Activity implements SurfaceHolder.Ca
     private final Runnable statsPoll = new Runnable() {
         @Override public void run() {
             if (!booted || isFinishing()) return;
+            double fps = 0d;
+            double ms = 0d;
+            try {
+                fps = core.average_fps();
+                ms = core.last_frame_time_ms();
+            } catch (Throwable ignored) { }
             if (CoreConfig.showFps(EmulatorActivity.this)) {
-                double fps = core.average_fps();
-                double ms = core.last_frame_time_ms();
                 fpsText.setText(String.format(Locale.US, "%.1f FPS  •  %.1f ms", fps, ms));
                 fpsText.setVisibility(View.VISIBLE);
             } else {
                 fpsText.setVisibility(View.GONE);
             }
+
+            DeviceTelemetry.BatteryState battery =
+                    DeviceTelemetry.readBattery(EmulatorActivity.this);
+            scheduleTemperatureRead(battery.temperatureC);
+            float temperatureC = Float.isNaN(deviceTemperatureC)
+                    ? battery.temperatureC : deviceTemperatureC;
+            int thermalStatus = PowerManager.THERMAL_STATUS_NONE;
+            if (powerManager != null) {
+                try { thermalStatus = powerManager.getCurrentThermalStatus(); }
+                catch (Throwable ignored) { }
+            }
+            if (achievementPresentation != null
+                    && achievementPresentation.isShowing()) {
+                achievementPresentation.updateTelemetry(fps, temperatureC,
+                        battery.percent, battery.charging, thermalStatus);
+            }
             handler.postDelayed(this, 500);
         }
     };
+
+    private void scheduleTemperatureRead(float batteryFallbackC) {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastTemperatureReadMs < 2000L
+                || !temperatureReadPending.compareAndSet(false, true)) return;
+        lastTemperatureReadMs = now;
+        telemetryExecutor.execute(() -> {
+            try {
+                float value = DeviceTelemetry.readTemperatureC(batteryFallbackC);
+                if (!Float.isNaN(value)) deviceTemperatureC = value;
+            } finally {
+                temperatureReadPending.set(false);
+            }
+        });
+    }
 
     private final Runnable promptPoll = new Runnable() {
         @Override public void run() {
@@ -460,6 +504,7 @@ public final class EmulatorActivity extends Activity implements SurfaceHolder.Ca
 
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        telemetryExecutor.shutdownNow();
         if (powerManager != null && thermalListener != null) {
             try { powerManager.removeThermalStatusListener(thermalListener); }
             catch (Throwable ignored) { }

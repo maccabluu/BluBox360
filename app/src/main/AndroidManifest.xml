@@ -74,7 +74,7 @@
             android:theme="@style/BootTheme" />
 
         <activity
-            android:name=".LauncherV0110Activity"
+            android:name=".LauncherV0120Activity"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_v0110"

@@ -14,6 +14,11 @@ final class AchievementPresentation extends Presentation {
     private AchievementPanelView panel;
     private AchievementData.Snapshot pendingSnapshot;
     private AchievementData.ProfileSummary pendingProfile;
+    private double pendingFps;
+    private float pendingTemperatureC = Float.NaN;
+    private int pendingBatteryPercent = -1;
+    private boolean pendingCharging;
+    private int pendingThermalStatus;
 
     AchievementPresentation(Context context, Display display,
                             ProfileStore.Profile profile, String gameName,
@@ -39,6 +44,8 @@ final class AchievementPresentation extends Presentation {
                     pendingProfile == null ? AchievementData.ProfileSummary.empty() : pendingProfile,
                     null);
         }
+        panel.updateTelemetry(pendingFps, pendingTemperatureC, pendingBatteryPercent,
+                pendingCharging, pendingThermalStatus);
     }
 
     void update(AchievementData.Snapshot snapshot,
@@ -47,5 +54,18 @@ final class AchievementPresentation extends Presentation {
         pendingSnapshot = snapshot;
         pendingProfile = profileSummary;
         if (panel != null) panel.update(snapshot, profileSummary, newlyUnlocked);
+    }
+
+    void updateTelemetry(double fps, float temperatureC, int batteryPercent,
+                         boolean charging, int thermalStatus) {
+        pendingFps = fps;
+        pendingTemperatureC = temperatureC;
+        pendingBatteryPercent = batteryPercent;
+        pendingCharging = charging;
+        pendingThermalStatus = thermalStatus;
+        if (panel != null) {
+            panel.updateTelemetry(fps, temperatureC, batteryPercent, charging,
+                    thermalStatus);
+        }
     }
 }

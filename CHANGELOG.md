@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 public alpha
+
+- Added a selectable 60 FPS target for compatible Xbox 360 games
+- Kept a 30 FPS option and the safer 24 FPS Fable II recovery preset
+- Added live FPS to the AYN Thor lower-screen achievement dashboard
+- Added live device temperature with Android battery-sensor fallback
+- Added battery percentage and charging state to the lower display
+- Added colour changes for low frame rate, elevated heat, and low battery
+- Moved thermal sensor file reads off the Android user-interface thread
+
 ## 0.11.0 public alpha
 
 - Prepared the first BluBox 360 release for public testing

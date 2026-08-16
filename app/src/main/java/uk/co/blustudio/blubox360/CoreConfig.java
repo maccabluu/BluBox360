@@ -37,6 +37,7 @@ final class CoreConfig {
     private static final String PREFS = "blubox360_core";
     private static final String PREF_GRAPHICS = "graphics_mode";
     private static final String PREF_FPS = "show_fps";
+    private static final String PREF_FRAME_LIMIT = "frame_limit";
     private static final String PREF_RENDER_SCALE = "render_scale";
     private static final String PREF_ANTIALIASING = "antialiasing";
     private static final String PREF_UPSCALER = "upscaler";
@@ -335,6 +336,16 @@ final class CoreConfig {
         applySettingsAsync(context, null);
     }
 
+    static int frameLimit(Context context) {
+        int value = preferences(context).getInt(PREF_FRAME_LIMIT, 60);
+        return value == 30 ? 30 : 60;
+    }
+
+    static void setFrameLimit(Context context, int value) {
+        preferences(context).edit().putInt(PREF_FRAME_LIMIT, value == 30 ? 30 : 60).apply();
+        applySettingsAsync(context, null);
+    }
+
     static boolean coolMode(Context context) {
         return preferences(context).getBoolean(PREF_COOL_MODE, true);
     }
@@ -347,6 +358,7 @@ final class CoreConfig {
         preferences(context).edit()
                 .remove(PREF_GRAPHICS)
                 .remove(PREF_FPS)
+                .remove(PREF_FRAME_LIMIT)
                 .remove(PREF_RENDER_SCALE)
                 .remove(PREF_ANTIALIASING)
                 .remove(PREF_UPSCALER)
@@ -439,7 +451,9 @@ final class CoreConfig {
             config.save_config_entry("GPU|async_shader_skip_draws", Boolean.toString(skipDraws));
             config.save_config_entry("GPU|pipeline_storage_precreate",
                     Boolean.toString(pipelinePreload(context)));
-            config.save_config_entry("GPU|framerate_limit", "0");
+            config.save_config_entry("GPU|framerate_limit",
+                    Integer.toString(frameLimit(context)));
+            config.save_config_entry("GPU|guest_display_refresh_cap", "true");
             config.save_config_entry("GPU|vulkan_mid_frame_submission_draws", "1300");
             config.save_config_entry("Vulkan|vulkan_pipeline_creation_threads",
                     Integer.toString(threads));
@@ -484,7 +498,8 @@ final class CoreConfig {
             config.save_config_entry("GPU|store_shaders", "true");
             config.save_config_entry("GPU|execute_unclipped_draw_vs_on_cpu", "true");
             config.save_config_entry("GPU|guest_display_refresh_cap", "true");
-            config.save_config_entry("GPU|framerate_limit", fableII ? "24" : "30");
+            config.save_config_entry("GPU|framerate_limit",
+                    fableII ? "24" : Integer.toString(frameLimit(context)));
             config.save_config_entry("GPU|async_shader_compilation", "true");
             config.save_config_entry("GPU|async_shader_vs_interpreter", "true");
             config.save_config_entry("GPU|async_shader_skip_draws", "true");

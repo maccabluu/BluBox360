@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +24,9 @@ final class AchievementPanelView extends LinearLayout {
     private final ProfileStore.Profile profile;
     private final boolean includeLocked;
     private final TextView profileScore;
+    private final TextView fpsMetric;
+    private final TextView temperatureMetric;
+    private final TextView batteryMetric;
     private final TextView gameTitle;
     private final TextView gameId;
     private final TextView progressText;
@@ -80,6 +84,21 @@ final class AchievementPanelView extends LinearLayout {
         header.addView(player, new LayoutParams(LayoutParams.WRAP_CONTENT,
                 LayoutParams.WRAP_CONTENT));
         addView(header, new LayoutParams(LayoutParams.MATCH_PARENT, dp(76)));
+
+        LinearLayout telemetry = new LinearLayout(context);
+        telemetry.setOrientation(HORIZONTAL);
+        telemetry.setGravity(Gravity.CENTER_VERTICAL);
+        telemetry.setPadding(dp(8), dp(4), dp(8), dp(4));
+        telemetry.setBackgroundResource(R.drawable.tile_blue);
+        fpsMetric = metric("FPS", "0.0");
+        temperatureMetric = metric("TEMP", "--°C");
+        batteryMetric = metric("BATTERY", "--%");
+        telemetry.addView(fpsMetric, new LayoutParams(0, dp(42), 1f));
+        telemetry.addView(temperatureMetric, new LayoutParams(0, dp(42), 1f));
+        telemetry.addView(batteryMetric, new LayoutParams(0, dp(42), 1f));
+        LayoutParams telemetryParams = new LayoutParams(LayoutParams.MATCH_PARENT, dp(50));
+        telemetryParams.topMargin = dp(6);
+        addView(telemetry, telemetryParams);
 
         unlockBanner = new LinearLayout(context);
         unlockBanner.setOrientation(HORIZONTAL);
@@ -187,6 +206,28 @@ final class AchievementPanelView extends LinearLayout {
         if (newlyUnlocked != null) showUnlock(newlyUnlocked);
     }
 
+    void updateTelemetry(double fps, float temperatureC, int batteryPercent,
+                         boolean charging, int thermalStatus) {
+        fpsMetric.setText(String.format(Locale.US, "FPS  %.1f", Math.max(0d, fps)));
+        temperatureMetric.setText(Float.isNaN(temperatureC)
+                ? "TEMP  --°C"
+                : String.format(Locale.US, "TEMP  %.0f°C", temperatureC));
+        batteryMetric.setText(batteryPercent < 0
+                ? "BATTERY  --%"
+                : "BATTERY  " + batteryPercent + "%" + (charging ? " +" : ""));
+
+        int normal = color(R.color.cyan);
+        int warm = Color.rgb(255, 190, 84);
+        int hot = Color.rgb(255, 104, 118);
+        fpsMetric.setTextColor(fps > 0d && fps < 45d ? warm : normal);
+        boolean severe = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE
+                || (!Float.isNaN(temperatureC) && temperatureC >= 70f);
+        boolean elevated = thermalStatus >= PowerManager.THERMAL_STATUS_MODERATE
+                || (!Float.isNaN(temperatureC) && temperatureC >= 55f);
+        temperatureMetric.setTextColor(severe ? hot : elevated ? warm : normal);
+        batteryMetric.setTextColor(batteryPercent >= 0 && batteryPercent <= 15 ? hot : normal);
+    }
+
     private void renderAchievements() {
         achievementList.removeAllViews();
         if (snapshot == null || !snapshot.available || snapshot.achievements.isEmpty()) {
@@ -292,6 +333,13 @@ final class AchievementPanelView extends LinearLayout {
         button.setFocusable(true);
         button.setOnClickListener(view -> selectFilter(value));
         return button;
+    }
+
+    private TextView metric(String label, String value) {
+        TextView view = text(label + "  " + value, 12, color(R.color.cyan), true);
+        view.setGravity(Gravity.CENTER);
+        view.setSingleLine(true);
+        return view;
     }
 
     private void selectFilter(int value) {

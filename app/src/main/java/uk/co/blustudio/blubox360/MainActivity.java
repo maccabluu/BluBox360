@@ -876,6 +876,7 @@ public final class MainActivity extends Activity {
         switch (settingsCategory) {
             case 1:
                 content.addView(graphicsCard());
+                addSettingsCard(content, frameRateCard());
                 addSettingsCard(content, coolModeCard());
                 addSettingsCard(content, clusterTuneCard());
                 addSettingsCard(content, infoCard("THERMAL GUIDANCE", "Start with Performance",
@@ -1046,7 +1047,7 @@ public final class MainActivity extends Activity {
                 addSettingsCard(content, storage);
                 break;
             default:
-                content.addView(infoCard("APP", "BluBox 360 0.11.0 public alpha",
+                content.addView(infoCard("APP", "BluBox 360 0.12.0 public alpha",
                         "Built by Macca and the BluBox team for public testing on ARM64 Android handhelds."));
                 LinearLayout boot = infoCard("BOOT ANIMATION", "Show the BluBox intro",
                         "Play the clean animated BluBox logo when the app starts.");
@@ -1192,6 +1193,31 @@ public final class MainActivity extends Activity {
         return card;
     }
 
+    private LinearLayout frameRateCard() {
+        int current = CoreConfig.frameLimit(this);
+        LinearLayout card = infoCard("FRAME RATE", current + " FPS target",
+                "Compatible games output up to 60 FPS. Games with an internal 30 FPS lock keep their original rate. Fable II keeps its safer 24 FPS recovery limit.");
+        RadioGroup group = new RadioGroup(this);
+        group.setOrientation(RadioGroup.HORIZONTAL);
+        RadioButton thirty = radio("30 FPS", "30");
+        RadioButton sixty = radio("60 FPS", "60");
+        group.addView(thirty, new RadioGroup.LayoutParams(0, dp(48), 1f));
+        group.addView(sixty, new RadioGroup.LayoutParams(0, dp(48), 1f));
+        if (current == 30) thirty.setChecked(true);
+        else sixty.setChecked(true);
+        group.setOnCheckedChangeListener((buttons, id) -> {
+            View selected = buttons.findViewById(id);
+            if (selected != null && selected.getTag() instanceof String) {
+                CoreConfig.setFrameLimit(this,
+                        Integer.parseInt((String) selected.getTag()));
+                Toast.makeText(this, "Frame-rate target saved for the next game.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+        card.addView(group);
+        return card;
+    }
+
     private void populateModsCategory(LinearLayout content, Runnable refresh) {
         List<ModManager.PatchMod> mods;
         try {
@@ -1277,7 +1303,7 @@ public final class MainActivity extends Activity {
         boolean enabled = CoreConfig.coolMode(this);
         LinearLayout card = infoCard("LOW HEAT MODE",
                 enabled ? "On for every game" : "Off",
-                "Reduces sustained CPU and GPU load with native rendering, a 30 FPS ceiling, two background shader workers, and no maximum-clock request. Fable II uses a 24 FPS ceiling.");
+                "Reduces sustained CPU and GPU load with native rendering, two background shader workers, and no maximum-clock request. The selected FPS target still applies. Fable II uses a 24 FPS ceiling.");
         CheckBox toggle = new CheckBox(this);
         toggle.setText("Use the low-heat launch preset");
         toggle.setTextColor(Color.WHITE);

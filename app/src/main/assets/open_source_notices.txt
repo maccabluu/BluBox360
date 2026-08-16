@@ -1,4 +1,4 @@
-BluBox 360 0.11.0 public alpha
+BluBox 360 0.12.0 public alpha
 
 BluBox 360 is an independent open-source frontend around an Android ARM64,
 Xenia-derived emulator core. It is not affiliated with, endorsed by, or

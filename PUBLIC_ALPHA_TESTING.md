@@ -5,11 +5,11 @@ from different games and Android devices.
 
 ## Before testing
 
-1. Install BluBox 360 0.11.0-alpha on an ARM64 Android device with Vulkan.
+1. Install BluBox 360 0.12.0-alpha on an ARM64 Android device with Vulkan.
 2. Back up important BluBox profiles and saves from Settings > App.
 3. Start with Low Heat Mode enabled and the Android system graphics driver.
 4. Use a legal game backup stored on internal storage or microSD.
-5. Turn on the FPS and frame-time overlay in Settings > Performance.
+5. Select the 60 FPS target in Settings > Performance.
 
 If the device becomes uncomfortable to hold, shows a temperature warning, or
 starts severe throttling, close the game and let the device cool. BluBox closes
@@ -33,8 +33,8 @@ emulation when Android reports severe thermal status.
 3. Record the game title, region, title ID, and file type.
 4. Test Performance or Low Heat Mode first.
 5. Play for at least ten minutes when the title reaches gameplay.
-6. Record average FPS, visible graphics problems, sound problems, controls, and
-   the highest temperature shown by the device tools.
+6. Record average FPS, visible graphics problems, sound problems, controls,
+   highest lower-screen temperature, and remaining battery percentage.
 7. Repeat the problem once before submitting a report.
 
 ## Submit a report
