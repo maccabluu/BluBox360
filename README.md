@@ -11,6 +11,17 @@ and its saves are not replaced.
 > and higher device temperatures in demanding games. Keep backups of important
 > saves and read [PUBLIC_ALPHA_TESTING.md](PUBLIC_ALPHA_TESTING.md) before testing.
 
+## Download the public alpha
+
+[Download BluBox 360 0.11.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/raw/main/releases/v0.11.0-alpha/BluBox-360-0.11.0-alpha-arm64.apk)
+
+Android 10 or newer, ARM64, and Vulkan are required. Back up profiles and saves
+before updating. The APK uses the same alpha signing certificate as earlier
+BluBox 360 builds, so Android preserves existing app data during an update.
+
+APK SHA-256:
+`f80df8c2d7478efcd79c8e4131900652be837cfa43893e45cd17c7e11567f74e`
+
 ## Included in 0.11.0 public alpha
 
 - First public tester package, with compatibility and bug-report forms
