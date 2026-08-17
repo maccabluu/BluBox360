@@ -35,6 +35,7 @@ struct BluBoxMacApp: App {
     @NSApplicationDelegateAdaptor(BluBoxAppDelegate.self) private var appDelegate
     @StateObject private var library = GameLibrary()
     @StateObject private var core = MacCoreBridge()
+    @StateObject private var updater = MacUpdateManager()
 
     init() {
         if CommandLine.arguments.contains("--self-test") {
@@ -53,6 +54,7 @@ struct BluBoxMacApp: App {
                 .background(WindowInteractionFix().allowsHitTesting(false))
                 .onAppear {
                     NSApp.activate(ignoringOtherApps: true)
+                    updater.startAutomaticCheck()
                     for window in NSApp.windows {
                         window.ignoresMouseEvents = false
                         window.makeKeyAndOrderFront(nil)
@@ -61,5 +63,13 @@ struct BluBoxMacApp: App {
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1240, height: 790)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Software Update…") {
+                    updater.presentUpdateWindow()
+                }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+            }
+        }
     }
 }
