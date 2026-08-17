@@ -59,7 +59,7 @@ struct GameEntry: Identifiable, Codable, Hashable {
 final class GameLibrary: ObservableObject {
     @Published private(set) var games: [GameEntry] = []
     @Published var selectedGame: GameEntry?
-    @Published var statusText = "BluBox 360 macOS 2.2 ready"
+    @Published private(set) var statusText = "BluBox 360 macOS 2.2 ready"
 
     private let libraryKey = "BluBoxMacGameLibraryV2"
     private let legacyKey = "BluBoxMacGamePaths"
@@ -77,6 +77,10 @@ final class GameLibrary: ObservableObject {
 
     var favoriteGames: [GameEntry] {
         games.filter(\.isFavorite)
+    }
+
+    func setStatus(_ text: String) {
+        statusText = text
     }
 
     func addGames() {
