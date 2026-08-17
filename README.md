@@ -10,32 +10,35 @@ and Adreno devices, with the AYN Thor Pro as the main development target.
 
 ## Latest release
 
-### BluBox 360 0.15.2 public alpha
+### BluBox 360 0.16.0 public alpha
 
-[Download BluBox 360 0.15.2-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.15.2-alpha/BluBox-360-0.15.2-alpha-arm64.apk)
+[Download BluBox 360 0.16.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.16.0-alpha/BluBox-360-0.16.0-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required.
 
 APK SHA-256:
-`56f0ba9acf20188fd876a97bf1414f335fe00d9cab133b243d621b92adef7267`
+`7301535aa27ea335d1e96e7c6ef34405f741432f79fa5f89d7cc05bef36e2213`
 
-[View the v0.15.2-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.15.2-alpha)
+[View the v0.16.0-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.16.0-alpha)
 
-## What changed in 0.15.2
+## What changed in 0.16.0
 
-- Fixed the Settings > App screen showing the old `0.12.0` version.
-- The app version shown in Settings is now injected automatically during release builds.
-- Strengthened the built-in updater version check.
-- Old releases are ignored when checking for updates.
-- The update popup appears only when a published GitHub release is newer than the installed version.
-- The updater re-checks the installed version before showing a prompt or downloading an APK.
-- GitHub release checks bypass stale cache responses.
-- SHA-256 verification remains enabled before an update is installed.
-- Uses the same permanent BluBox signing certificate as 0.15.0 and 0.15.1.
+- Added **HD+** graphics mode for clearer original Xbox 360 rendering.
+- HD+ uses 2x internal resolution, FSR scaling and sharpening, FXAA Extreme, and 16x anisotropic texture filtering.
+- HD+ uses stronger sharpening than the normal HD preset.
+- Selecting HD+ turns Low Heat Mode off so the higher-resolution settings stay active.
+- Added **Find retail cover online** to each game's options.
+- The retail-cover button opens the Xbox 360 section of The Cover Project.
+- Downloaded covers can be imported with **Choose cover from device**.
+- Full wraparound retail scans are detected and BluBox automatically crops the front panel for the 3D Xbox 360 case.
+- Imported cover artwork now supports up to a 2048px edge and higher JPEG quality.
+- Keeps the permanent BluBox signing certificate and built-in update system.
 
-When 0.15.2 is installed and 0.15.2 is the newest published release, the update
-popup should stay hidden. It should appear again only after a newer BluBox
-release is published.
+HD+ improves the appearance of the original game textures and rendering. BluBox
+does not bundle replacement texture packs and does not modify game files.
+
+The Cover Project is an independent external website. BluBox does not bundle or
+redistribute its cover scans. Users choose and download artwork themselves.
 
 ## Built-in updates
 
@@ -51,20 +54,45 @@ supplied. Android's Package Installer then handles the final installation
 confirmation.
 
 Version 0.15.0 established the permanent BluBox release certificate. Versions
-0.15.1 and 0.15.2 use the same certificate. Future releases must continue using
-this certificate so Android accepts them as normal updates and keeps installed
-BluBox data.
+0.15.1, 0.15.2, and 0.16.0 use the same certificate. Future releases must keep
+using this certificate so Android accepts them as normal updates and keeps
+installed BluBox data.
 
 ## Install or update
 
-1. Download `BluBox-360-0.15.2-alpha-arm64.apk`.
-2. If you already have 0.15.0 or 0.15.1 installed, install 0.15.2 directly over it.
+1. Download `BluBox-360-0.16.0-alpha-arm64.apk`.
+2. If you already have 0.15.0, 0.15.1, or 0.15.2 installed, install 0.16.0 directly over it.
 3. Android should treat it as an update because the permanent signing certificate matches.
-4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.15.2 public alpha`.
+4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.16.0 public alpha`.
 5. Keep your profiles and saves backed up while testing alpha builds.
 
 Moving directly from 0.14.0 still requires the one final uninstall because
 0.14.0 used a temporary signing certificate.
+
+## HD+ graphics
+
+Open **Settings > Performance** and choose **HD+** for the new enhanced graphics
+preset. HD+ uses 2x internal rendering, FSR sharpening, FXAA Extreme, and 16x
+anisotropic filtering to make surfaces, signs, clothing, roads, scenery, and
+other original game textures look cleaner where the game and GPU allow it.
+
+HD+ uses more GPU power than Performance or Balanced mode and automatically
+turns Low Heat Mode off. If a game runs too hot or loses too much performance,
+switch back to Balanced, HD, or Performance.
+
+Fable II keeps its existing safety/recovery settings where required.
+
+## Retail-style game covers
+
+Hold a game tile, or focus it and press Y, then choose **Find retail cover online**.
+BluBox opens the Xbox 360 section of The Cover Project in your browser. Find the
+cover for your game and download it to the device, then return to BluBox and use
+**Choose cover from device**.
+
+BluBox accepts portrait cover artwork and full retail wraparound scans. Wide
+wraparound scans are automatically cropped to the front panel before being shown
+on the 3D Xbox 360 case. Use **Reset automatic cover** to return to the artwork
+found inside the game file.
 
 ## Main features
 
@@ -73,9 +101,9 @@ Moving directly from 0.14.0 still requires the one final uninstall because
 - ISO, `default.xex`, and ZAR launch support from internal storage or microSD.
 - Single-game import, game-folder scanning, and library refresh.
 - Three game library views: 3D Shelf, 3D Grid, and Compact 3D List.
-- Custom game cover import.
-- Performance, Balanced, HD, and custom renderer modes.
-- Native through 7× internal resolution options.
+- Retail-style and custom game cover import with wraparound-scan front cropping.
+- Performance, Balanced, HD, HD+, and custom renderer modes.
+- Native through 7x internal resolution options.
 - FXAA, CAS/FSR, anisotropic filtering, shader-worker controls, and pipeline preloading.
 - Rootless AdrenoTools-compatible Turnip driver import on supported Adreno devices.
 - Selectable 30 FPS or 60 FPS target for compatible games.
