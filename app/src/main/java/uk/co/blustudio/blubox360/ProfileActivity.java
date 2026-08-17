@@ -2,6 +2,8 @@ package uk.co.blustudio.blubox360;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.InputDevice;
@@ -20,6 +22,8 @@ import android.widget.Toast;
 import java.util.List;
 
 public final class ProfileActivity extends Activity {
+    private static final int REQ_PROFILE_PHOTO = 610;
+
     private ProfileStore store;
     private GridLayout profileGrid;
     private TextView activeProfileLabel;
@@ -27,6 +31,7 @@ public final class ProfileActivity extends Activity {
     private EditText gamertagInput;
     private AvatarView editorAvatar;
     private Button deleteButton;
+    private Button removePhotoButton;
     private ProfileStore.Profile draft;
 
     @Override
@@ -42,14 +47,12 @@ public final class ProfileActivity extends Activity {
         gamertagInput = findViewById(R.id.gamertagInput);
         editorAvatar = findViewById(R.id.profileEditorAvatar);
         deleteButton = findViewById(R.id.deleteProfileButton);
+        removePhotoButton = findViewById(R.id.removePhotoButton);
 
         findViewById(R.id.profileBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.newProfileButton).setOnClickListener(v -> beginNewProfile());
-        findViewById(R.id.skinButton).setOnClickListener(v -> cycleSkin());
-        findViewById(R.id.hairButton).setOnClickListener(v -> cycleHair());
-        findViewById(R.id.outfitButton).setOnClickListener(v -> cycleOutfit());
-        findViewById(R.id.expressionButton).setOnClickListener(v -> cycleExpression());
-        findViewById(R.id.backgroundButton).setOnClickListener(v -> cycleBackground());
+        findViewById(R.id.choosePhotoButton).setOnClickListener(v -> chooseProfilePhoto());
+        removePhotoButton.setOnClickListener(v -> removeProfilePhoto());
         findViewById(R.id.saveProfileButton).setOnClickListener(v -> saveDraft());
         deleteButton.setOnClickListener(v -> confirmDelete());
 
@@ -166,12 +169,10 @@ public final class ProfileActivity extends Activity {
     }
 
     private void showEditor(ProfileStore.Profile profile) {
-        if (profile == null) {
-            return;
-        }
+        if (profile == null) return;
         draft = profile.copy();
         boolean exists = store.getById(draft.id) != null;
-        editorTitle.setText(exists ? "Edit avatar" : "Create profile");
+        editorTitle.setText(exists ? "Edit profile" : "Create profile");
         gamertagInput.setText(draft.name);
         gamertagInput.setSelection(gamertagInput.getText().length());
         deleteButton.setVisibility(exists ? View.VISIBLE : View.GONE);
@@ -188,61 +189,63 @@ public final class ProfileActivity extends Activity {
         gamertagInput.requestFocus();
     }
 
-    private void cycleSkin() {
-        if (draft != null) {
-            draft.skin = (draft.skin + 1) % AvatarView.SKIN_COLORS.length;
+    private void chooseProfilePhoto() {
+        if (draft == null) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQ_PROFILE_PHOTO);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_PROFILE_PHOTO || resultCode != RESULT_OK ||
+                data == null || data.getData() == null || draft == null) {
+            return;
+        }
+        Uri uri = data.getData();
+        try {
+            int flags = data.getFlags() &
+                    (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            if (flags != 0) getContentResolver().takePersistableUriPermission(uri, flags);
+        } catch (Throwable ignored) {
+        }
+        if (AvatarView.importProfilePhoto(this, draft.id, uri)) {
             updatePreview();
+            renderProfiles();
+            Toast.makeText(this, "Profile photo added.", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "That photo could not be loaded.", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void cycleHair() {
-        if (draft != null) {
-            draft.hair = (draft.hair + 1) % AvatarView.HAIR_COLORS.length;
+    private void removeProfilePhoto() {
+        if (draft == null) return;
+        if (AvatarView.removeProfilePhoto(this, draft.id)) {
             updatePreview();
-        }
-    }
-
-    private void cycleOutfit() {
-        if (draft != null) {
-            draft.outfit = (draft.outfit + 1) % AvatarView.OUTFIT_COLORS.length;
-            updatePreview();
-        }
-    }
-
-    private void cycleExpression() {
-        if (draft != null) {
-            draft.expression = (draft.expression + 1) % AvatarView.EXPRESSION_COUNT;
-            updatePreview();
-        }
-    }
-
-    private void cycleBackground() {
-        if (draft != null) {
-            draft.background = (draft.background + 1) % AvatarView.BACKGROUND_COLORS.length;
-            updatePreview();
+            renderProfiles();
+            Toast.makeText(this, "Profile photo removed.", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void updatePreview() {
         if (draft != null) {
             editorAvatar.setProfile(draft);
+            removePhotoButton.setEnabled(AvatarView.hasProfilePhoto(this, draft.id));
         }
     }
 
     private void saveDraft() {
-        if (draft == null) {
-            return;
-        }
+        if (draft == null) return;
         boolean isNew = store.getById(draft.id) == null;
         draft.name = gamertagInput.getText().toString();
         ProfileStore.SaveResult result = store.save(draft);
         Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
-        if (!result.success) {
-            return;
-        }
-        if (isNew) {
-            store.setActive(result.profile.id);
-        }
+        if (!result.success) return;
+        if (isNew) store.setActive(result.profile.id);
         CoreConfig.syncActiveProfileAsync(this, result.profile,
                 message -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
         renderProfiles();
@@ -250,19 +253,19 @@ public final class ProfileActivity extends Activity {
     }
 
     private void confirmDelete() {
-        if (draft == null || store.getById(draft.id) == null) {
-            return;
-        }
+        if (draft == null || store.getById(draft.id) == null) return;
         if (store.getProfiles().size() <= 1) {
             Toast.makeText(this, "Keep at least one BluBox profile.", Toast.LENGTH_SHORT).show();
             return;
         }
         new AlertDialog.Builder(this)
                 .setTitle("Delete " + draft.name + "?")
-                .setMessage("The profile entry will be removed. Its HDD save file is kept on the device for safety.")
+                .setMessage("The profile entry and profile photo will be removed. Its HDD save file is kept on the device for safety.")
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton("Delete profile", (dialog, which) -> {
-                    if (store.delete(draft.id)) {
+                    String id = draft.id;
+                    if (store.delete(id)) {
+                        AvatarView.removeProfilePhoto(this, id);
                         Toast.makeText(this, "Profile removed. Save data was not erased.",
                                 Toast.LENGTH_SHORT).show();
                         renderProfiles();
@@ -281,9 +284,7 @@ public final class ProfileActivity extends Activity {
             }
             if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_A) {
                 View focused = getCurrentFocus();
-                if (focused != null && focused.performClick()) {
-                    return true;
-                }
+                if (focused != null && focused.performClick()) return true;
             }
         }
         return super.dispatchKeyEvent(event);
