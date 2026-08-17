@@ -22,6 +22,15 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Run Apple Silicon JIT host probe
+        run: |
+          mkdir -p macos/CoreProbe/build
+          clang -arch arm64 -mmacosx-version-min=13.0 \
+            macos/CoreProbe/jit_probe.c \
+            -o macos/CoreProbe/build/blubox-jit-probe
+          file macos/CoreProbe/build/blubox-jit-probe
+          macos/CoreProbe/build/blubox-jit-probe
+
       - name: Build Apple Silicon preview
         run: |
           chmod +x macos/build-macos.sh
