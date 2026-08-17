@@ -1,0 +1,59 @@
+name: Verify BluBox 360 v0.15.0 alpha
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-v0.15.0-alpha.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out BluBox 360
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36 build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+
+      - name: Build unsigned ARM64 verification APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./build-direct.sh
+          ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" ./build-direct.sh
+
+      - name: Confirm updater classes are packaged
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/BluBox-360-0.15.0-alpha-arm64-unsigned.apk"
+          test -f "$apk"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt2" dump xmltree "$apk" AndroidManifest.xml \
+            | grep -q "UpdateActivity"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt2" dump xmltree "$apk" AndroidManifest.xml \
+            | grep -q "REQUEST_INSTALL_PACKAGES"
+
+      - name: Upload verification APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BluBox-360-0.15.0-alpha-verification
+          path: app/build/outputs/apk/release/BluBox-360-0.15.0-alpha-arm64-unsigned.apk
+          if-no-files-found: error
