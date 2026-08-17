@@ -7,21 +7,29 @@ app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-triple=${BLUBOX_MAC_TRIPLE:-arm64-apple-macosx13.0}
-version=${BLUBOX_MAC_VERSION:-0.2.0-preview}
+version=${BLUBOX_MAC_VERSION:-0.2.1-preview}
+arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx13.0}
+intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx13.0}
 
 rm -rf "$dist"
 mkdir -p "$macos" "$resources"
 
-swift build --package-path "$root" -c release --triple "$triple"
+build_binary() {
+  local triple="$1"
+  swift build --package-path "$root" -c release --triple "$triple"
+  local bin_dir
+  bin_dir=$(swift build --package-path "$root" -c release --triple "$triple" --show-bin-path)
+  if [[ ! -x "$bin_dir/BluBoxMac" ]]; then
+    echo "BluBoxMac release binary was not produced for $triple." >&2
+    exit 1
+  fi
+  printf '%s\n' "$bin_dir/BluBoxMac"
+}
 
-binary=$(find "$root/.build" -type f -name BluBoxMac -path '*/release/*' | head -n 1)
-if [[ -z "${binary:-}" || ! -f "$binary" ]]; then
-  echo "BluBoxMac release binary was not produced." >&2
-  exit 1
-fi
+arm_binary=$(build_binary "$arm_triple")
+intel_binary=$(build_binary "$intel_triple")
 
-cp "$binary" "$macos/BluBox360"
+lipo -create "$arm_binary" "$intel_binary" -output "$macos/BluBox360"
 chmod +x "$macos/BluBox360"
 
 cat > "$contents/Info.plist" <<PLIST
@@ -46,34 +54,46 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key>
     <string>${version%-preview}</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>3</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.games</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSArchitecturePriority</key>
+    <array>
+        <string>arm64</string>
+        <string>x86_64</string>
+    </array>
 </dict>
 </plist>
 PLIST
 
-# Ad-hoc signing is enough for private preview testing. A public Mac release will
-# use Developer ID signing and notarization once the native emulator core is ready.
 codesign --force --deep --sign - "$app"
 
-zip_path="$dist/BluBox-360-Mac-${version}-Apple-Silicon.zip"
-dmg_path="$dist/BluBox-360-Mac-${version}-Apple-Silicon.dmg"
+zip_path="$dist/BluBox-360-Mac-${version}-Universal.zip"
+dmg_path="$dist/BluBox-360-Mac-${version}-Universal.dmg"
+staging="$dist/dmg-root"
+
+rm -rf "$staging"
+mkdir -p "$staging"
+cp -R "$app" "$staging/BluBox 360.app"
+ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
   -volname "BluBox 360" \
-  -srcfolder "$app" \
+  -srcfolder "$staging" \
   -ov \
   -format UDZO \
   "$dmg_path"
 
+rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS preview:"
+echo "Built BluBox 360 macOS universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
