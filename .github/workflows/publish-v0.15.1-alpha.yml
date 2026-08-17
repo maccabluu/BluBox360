@@ -1,11 +1,6 @@
 name: Publish BluBox 360 v0.15.1 alpha
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/publish-v0.15.1-alpha.yml
   workflow_dispatch:
 
 permissions:
