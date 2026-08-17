@@ -13,24 +13,29 @@ and its saves are not replaced.
 
 ## Download the public alpha
 
-[Download BluBox 360 0.12.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.12.0-alpha/BluBox-360-0.12.0-alpha-arm64.apk)
+[Download BluBox 360 0.14.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.14.0-alpha/BluBox-360-0.14.0-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required. Back up profiles and saves
-before updating. The APK uses the same alpha signing certificate as earlier
-BluBox 360 builds, so Android preserves existing app data during an update.
+before updating. The current automated alpha build uses a temporary signing
+certificate when a private release key is not configured. If Android reports an
+install conflict, back up BluBox app data, uninstall the older alpha, install the
+new build, then restore the backup.
 
 APK SHA-256:
-`e2a819148b7c07e92321cf07d6666f857fd85b923a787e7e34a04cda85b72d68`
+`5dde9bbe4d4bf6abcae253f4fa990d99de9bbb2108f80f6fe781f3a05963a41c`
 
-## Included in 0.12.0 public alpha
+## Included in 0.14.0 public alpha
 
+- Fixed and strengthened the BluBox startup chime
+- Startup sound continues when the boot animation is disabled
+- Profile-photo upload replaces the old skin, hair, outfit, expression, and background avatar creator
+- Profile photos appear in profile cards, the account badge, the side menu, and local Xbox 360 profile artwork
 - First public tester package, with compatibility and bug-report forms
 - Public testing, contribution, privacy, security, and roadmap documentation
 - Fresh Android launcher component and icon resource for the controller-B logo
 - Selectable 60 FPS target for compatible games, with a 30 FPS option
 - Live FPS, device temperature, battery percentage, and charging state on the
   AYN Thor lower-screen achievement dashboard
-
 - Real Xenia-derived Xbox 360 emulation core with ARM64 JIT and Vulkan output
 - ISO, `default.xex`, and ZAR launch support from internal storage or microSD
 - Single-game import plus recursive game-folder scanning and one-button library refresh
@@ -46,7 +51,7 @@ APK SHA-256:
   and a controller rumble test
 - Automatic Harry Potter precision aiming for steadier spell attacks
 - Automatic game saves through local Xbox 360 profiles
-- Up to eight BluBox accounts with full-body cartoon avatars and separate profile data
+- Up to eight BluBox accounts with separate profile photos and profile data
 - Local Xbox 360 achievement tracking from each profile's GPD records
 - AYN Thor dual-screen mode with live progress and unlocks on the lower display
 - Achievement history with per-game progress, gamerscore, icons, and dates
@@ -57,7 +62,7 @@ APK SHA-256:
 - Mods tab for importing, enabling, disabling, and removing Xenia patch mods
 - Category-based emulator settings for app, performance, renderer, audio,
   controls, hotkeys, achievements, and storage
-- Optional animated BluBox logo intro and new controller-B Android launcher icon
+- Optional animated BluBox logo intro and controller-B Android launcher icon
 - Portable app-data backup and restore for profiles, saves, artwork, and settings
 - Safe settings reset that keeps the game library, profiles, and save progress
 - Performance, Balanced, and HD graphics modes
@@ -78,7 +83,7 @@ APK SHA-256:
 
 ## Install and use
 
-1. Install `BluBox-360-0.12.0-alpha-arm64.apk` on an ARM64 Android device.
+1. Install `BluBox-360-0.14.0-alpha-arm64.apk` on an ARM64 Android device.
 2. Allow installation from your browser or file manager if Android asks.
 3. Open BluBox 360 and grant All files access. Large disc images remain on your
    microSD card and are not copied into the app.
@@ -87,6 +92,16 @@ APK SHA-256:
 5. After placing another ISO, ZAR, or extracted `default.xex` in the selected
    folder, press **Refresh Library**.
 6. Tap a game or focus it with the controller and press A.
+
+## Profile photos
+
+Open **Profiles**, choose a profile, then select **Choose profile photo**. BluBox
+opens Android's image picker, crops a local square copy for the profile, and
+keeps the original image untouched. **Remove photo** returns the profile to its
+initial-based fallback image.
+
+The selected photo is also used when BluBox prepares the local Xbox 360 profile
+artwork for the emulation core.
 
 ## Covers and mods
 
@@ -130,9 +145,10 @@ random access to multi-gigabyte game images.
 
 Open **Settings → App** to turn the BluBox boot animation on or off, create a
 portable backup, restore one, or reset only the app settings. A backup includes
-the library database and artwork, BluBox profiles, Xbox 360 save content, and
-app/emulator preferences. Game images and Xbox firmware are intentionally left
-out, so keep those legal files separately on internal storage or microSD.
+the library database and artwork, BluBox profiles and profile photos, Xbox 360
+save content, and app/emulator preferences. Game images and Xbox firmware are
+intentionally left out, so keep those legal files separately on internal
+storage or microSD.
 
 ## AYN Thor lower-screen achievements
 
@@ -156,7 +172,7 @@ Performance mode, then try Balanced or HD. No games, Xbox firmware, encryption
 keys, or Microsoft code are included.
 
 Fable II title ID `4D5307F1` receives a conservative automatic preset at launch.
-Version 0.12.0 keeps the existing shader cache, compiles missing pipelines with
+Version 0.14.0 keeps the existing shader cache, compiles missing pipelines with
 two background workers, skips unfinished draws, and limits output to 24 FPS.
 BluBox memory patches and the title-specific Fable II 60 FPS and High Tick Rate
 patches remain off.
