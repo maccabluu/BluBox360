@@ -1,0 +1,47 @@
+name: Build BluBox 360 macOS preview
+
+on:
+  push:
+    branches:
+      - macos-preview
+    paths:
+      - 'macos/**'
+      - '.github/workflows/build-macos-preview.yml'
+  workflow_dispatch:
+
+jobs:
+  build-macos-preview:
+    runs-on: macos-14
+    steps:
+      - name: Check out BluBox 360
+        uses: actions/checkout@v4
+
+      - name: Show build environment
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build Apple Silicon preview
+        run: |
+          chmod +x macos/build-macos.sh
+          BLUBOX_MAC_TRIPLE=arm64-apple-macosx13.0 \
+          BLUBOX_MAC_VERSION=0.1.0-preview \
+          ./macos/build-macos.sh
+
+      - name: Verify app architecture
+        run: |
+          file 'macos/dist/BluBox 360.app/Contents/MacOS/BluBox360'
+          lipo -info 'macos/dist/BluBox 360.app/Contents/MacOS/BluBox360'
+          codesign --verify --deep --strict --verbose=2 'macos/dist/BluBox 360.app'
+          shasum -a 256 -c macos/dist/SHA256SUMS.txt
+
+      - name: Upload Mac preview build
+        uses: actions/upload-artifact@v4
+        with:
+          name: BluBox-360-Mac-0.1.0-preview-Apple-Silicon
+          path: |
+            macos/dist/BluBox-360-Mac-0.1.0-preview-Apple-Silicon.zip
+            macos/dist/BluBox-360-Mac-0.1.0-preview-Apple-Silicon.dmg
+            macos/dist/SHA256SUMS.txt
+          if-no-files-found: error
