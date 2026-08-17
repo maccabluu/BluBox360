@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'uk.co.blustudio.blups2'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'uk.co.blustudio.blups2'
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0-preview'
+
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
