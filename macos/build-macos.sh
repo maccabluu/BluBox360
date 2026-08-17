@@ -7,7 +7,7 @@ app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-version=${BLUBOX_MAC_VERSION:-2.2.0-preview}
+version=${BLUBOX_MAC_VERSION:-2.3.0-preview}
 arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx13.0}
 intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx13.0}
 
@@ -32,6 +32,18 @@ intel_binary=$(build_binary "$intel_triple")
 lipo -create "$arm_binary" "$intel_binary" -output "$macos/BluBox360"
 chmod +x "$macos/BluBox360"
 
+core_arm="$dist/blubox360-core-arm64"
+core_intel="$dist/blubox360-core-x86_64"
+core_universal="$resources/blubox360-core"
+
+clang -O2 -arch arm64 -mmacosx-version-min=13.0 \
+  "$root/NativeCore/blubox360_core.c" -o "$core_arm"
+clang -O2 -arch x86_64 -mmacosx-version-min=13.0 \
+  "$root/NativeCore/blubox360_core.c" -o "$core_intel"
+lipo -create "$core_arm" "$core_intel" -output "$core_universal"
+chmod +x "$core_universal"
+rm -f "$core_arm" "$core_intel"
+
 cat > "$contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,9 +64,9 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.2.0</string>
+    <string>2.3.0</string>
     <key>CFBundleVersion</key>
-    <string>22</string>
+    <string>23</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
@@ -72,6 +84,7 @@ cat > "$contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+codesign --force --sign - "$core_universal"
 codesign --force --deep --sign - "$app"
 
 zip_path="$dist/BluBox-360-Mac-${version}-Universal.zip"
@@ -85,7 +98,7 @@ ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
-  -volname "BluBox 360 2.2" \
+  -volname "BluBox 360 2.3" \
   -srcfolder "$staging" \
   -ov \
   -format UDZO \
@@ -94,6 +107,7 @@ hdiutil create \
 rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS 2.2 universal preview:"
+echo "Built BluBox 360 macOS 2.3 universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
+echo "  bundled core: $core_universal"
