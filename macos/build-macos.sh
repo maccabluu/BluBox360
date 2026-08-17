@@ -16,7 +16,7 @@ mkdir -p "$macos" "$resources"
 
 build_binary() {
   local triple="$1"
-  swift build --package-path "$root" -c release --triple "$triple"
+  swift build --package-path "$root" -c release --triple "$triple" >&2
   local bin_dir
   bin_dir=$(swift build --package-path "$root" -c release --triple "$triple" --show-bin-path)
   if [[ ! -x "$bin_dir/BluBoxMac" ]]; then
