@@ -26,7 +26,7 @@ jobs:
         run: |
           chmod +x macos/build-macos.sh
           BLUBOX_MAC_TRIPLE=arm64-apple-macosx13.0 \
-          BLUBOX_MAC_VERSION=0.1.0-preview \
+          BLUBOX_MAC_VERSION=0.2.0-preview \
           ./macos/build-macos.sh
 
       - name: Verify app architecture
@@ -39,9 +39,9 @@ jobs:
       - name: Upload Mac preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-0.1.0-preview-Apple-Silicon
+          name: BluBox-360-Mac-0.2.0-preview-Apple-Silicon
           path: |
-            macos/dist/BluBox-360-Mac-0.1.0-preview-Apple-Silicon.zip
-            macos/dist/BluBox-360-Mac-0.1.0-preview-Apple-Silicon.dmg
+            macos/dist/BluBox-360-Mac-0.2.0-preview-Apple-Silicon.zip
+            macos/dist/BluBox-360-Mac-0.2.0-preview-Apple-Silicon.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
