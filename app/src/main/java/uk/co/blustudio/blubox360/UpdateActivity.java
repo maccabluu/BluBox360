@@ -33,6 +33,7 @@ import java.util.Locale;
 public final class UpdateActivity extends Activity {
     private static final String RELEASES_URL =
             "https://api.github.com/repos/maccabluu/BluBox360/releases?per_page=20";
+    private static final String BUILD_VERSION_FLOOR = "0.15.1-alpha";
     private static final long MIN_CHECK_INTERVAL_MS = 15L * 60L * 1000L;
     private static final String PREFS = "blubox360_updates";
     private static final String PREF_LAST_CHECK = "last_check_ms";
@@ -75,8 +76,7 @@ public final class UpdateActivity extends Activity {
                     .setTitle("Allow BluBox updates")
                     .setMessage("Android needs permission for BluBox to install downloaded updates. "
                             + "Choose Allow, then return to BluBox.")
-                    .setPositiveButton("Open settings", (dialog, which) ->
-                            requestInstallPermission())
+                    .setPositiveButton("Open settings", (dialog, which) -> requestInstallPermission())
                     .setNegativeButton("Later", (dialog, which) -> finish())
                     .setOnCancelListener(dialog -> finish())
                     .show();
@@ -86,7 +86,9 @@ public final class UpdateActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (downloadedApk != null) outState.putString("downloaded_apk", downloadedApk.getAbsolutePath());
+        if (downloadedApk != null) {
+            outState.putString("downloaded_apk", downloadedApk.getAbsolutePath());
+        }
         outState.putBoolean("waiting_install_permission", waitingForInstallPermission);
     }
 
@@ -108,16 +110,18 @@ public final class UpdateActivity extends Activity {
     }
 
     private UpdateInfo fetchLatestUpdate() throws Exception {
-        String currentVersion = currentVersionName();
-        JSONArray releases = new JSONArray(readText(RELEASES_URL));
+        String currentVersion = effectiveCurrentVersion();
+        String liveUrl = RELEASES_URL + "&nocache=" + System.currentTimeMillis();
+        JSONArray releases = new JSONArray(readText(liveUrl));
         UpdateInfo best = null;
 
         for (int i = 0; i < releases.length(); i++) {
             JSONObject release = releases.optJSONObject(i);
             if (release == null || release.optBoolean("draft", false)) continue;
+            if (release.optString("published_at", "").isBlank()) continue;
 
             String tag = release.optString("tag_name", "");
-            if (compareVersions(tag, currentVersion) <= 0) continue;
+            if (tag.isBlank() || compareVersions(tag, currentVersion) <= 0) continue;
 
             JSONArray assets = release.optJSONArray("assets");
             if (assets == null) continue;
@@ -150,20 +154,30 @@ public final class UpdateActivity extends Activity {
                     apkUrl,
                     checksumUrl,
                     apkSize);
-            if (best == null || compareVersions(candidate.tag, best.tag) > 0) best = candidate;
+            if (best == null || compareVersions(candidate.tag, best.tag) > 0) {
+                best = candidate;
+            }
         }
         return best;
     }
 
     private void showUpdateDialog(UpdateInfo info) {
         if (isFinishing()) return;
+
+        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+            finish();
+            return;
+        }
+
         String size = info.apkSize > 0
                 ? String.format(Locale.UK, "%.1f MB", info.apkSize / 1024d / 1024d)
                 : "APK download";
+        String version = cleanVersion(info.tag);
+
         new AlertDialog.Builder(this)
                 .setTitle("BluBox 360 update available")
-                .setMessage(info.title + "\n\n" + size
-                        + "\n\nA newer BluBox version is ready. Update now or choose Later.")
+                .setMessage("BluBox 360 " + version + " public alpha\n\n"
+                        + size + "\n\nA newer BluBox version is ready. Update now or choose Later.")
                 .setPositiveButton("Update now", (dialog, which) -> downloadUpdate(info))
                 .setNeutralButton("What's new", (dialog, which) -> showReleaseNotes(info))
                 .setNegativeButton("Later", (dialog, which) -> finish())
@@ -172,6 +186,10 @@ public final class UpdateActivity extends Activity {
     }
 
     private void showReleaseNotes(UpdateInfo info) {
+        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+            finish();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle(info.title)
                 .setMessage(info.notes == null || info.notes.isBlank()
@@ -184,6 +202,11 @@ public final class UpdateActivity extends Activity {
 
     @SuppressWarnings("deprecation")
     private void downloadUpdate(UpdateInfo info) {
+        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+            finish();
+            return;
+        }
+
         ProgressDialog progress = new ProgressDialog(this);
         progress.setTitle("Downloading BluBox update");
         progress.setMessage(info.apkName);
@@ -284,7 +307,9 @@ public final class UpdateActivity extends Activity {
                  OutputStream output = session.openWrite("BluBox-update.apk", 0, downloadedApk.length())) {
                 byte[] buffer = new byte[64 * 1024];
                 int read;
-                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
                 session.fsync(output);
             }
 
@@ -326,9 +351,17 @@ public final class UpdateActivity extends Activity {
                 .show();
     }
 
-    private String currentVersionName() throws Exception {
-        PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
-        return info.versionName == null ? "0.0.0" : info.versionName;
+    private String effectiveCurrentVersion() {
+        String reported = "0.0.0";
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (info.versionName != null && !info.versionName.isBlank()) {
+                reported = info.versionName;
+            }
+        } catch (Exception ignored) {
+        }
+        return compareVersions(reported, BUILD_VERSION_FLOOR) >= 0
+                ? reported : BUILD_VERSION_FLOOR;
     }
 
     private static int compareVersions(String first, String second) {
@@ -341,20 +374,28 @@ public final class UpdateActivity extends Activity {
     }
 
     private static int[] versionNumbers(String value) {
-        String clean = value == null ? "" : value.trim();
-        if (clean.startsWith("v") || clean.startsWith("V")) clean = clean.substring(1);
+        String clean = cleanVersion(value);
         int dash = clean.indexOf('-');
         if (dash >= 0) clean = clean.substring(0, dash);
         String[] parts = clean.split("\\.");
         int[] result = new int[] {0, 0, 0};
         for (int i = 0; i < Math.min(3, parts.length); i++) {
             try {
-                result[i] = Integer.parseInt(parts[i].replaceAll("[^0-9]", ""));
+                String digits = parts[i].replaceAll("[^0-9]", "");
+                result[i] = digits.isBlank() ? 0 : Integer.parseInt(digits);
             } catch (NumberFormatException ignored) {
                 result[i] = 0;
             }
         }
         return result;
+    }
+
+    private static String cleanVersion(String value) {
+        String clean = value == null ? "" : value.trim();
+        if (clean.startsWith("v") || clean.startsWith("V")) {
+            clean = clean.substring(1);
+        }
+        return clean;
     }
 
     private static String readText(String source) throws Exception {
@@ -363,7 +404,9 @@ public final class UpdateActivity extends Activity {
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[16 * 1024];
             int read;
-            while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
             return output.toString(StandardCharsets.UTF_8.name());
         } finally {
             connection.disconnect();
@@ -375,8 +418,12 @@ public final class UpdateActivity extends Activity {
         connection.setConnectTimeout(6000);
         connection.setReadTimeout(12000);
         connection.setInstanceFollowRedirects(true);
+        connection.setUseCaches(false);
+        connection.setDefaultUseCaches(false);
         connection.setRequestProperty("Accept", "application/vnd.github+json");
         connection.setRequestProperty("User-Agent", "BluBox360-Android-Updater");
+        connection.setRequestProperty("Cache-Control", "no-cache, no-store, max-age=0");
+        connection.setRequestProperty("Pragma", "no-cache");
         int code = connection.getResponseCode();
         if (code < 200 || code >= 300) {
             connection.disconnect();
@@ -386,7 +433,8 @@ public final class UpdateActivity extends Activity {
     }
 
     private static String expectedSha256(String checksumUrl, String apkName) throws Exception {
-        String text = readText(checksumUrl);
+        String text = readText(checksumUrl + (checksumUrl.contains("?") ? "&" : "?")
+                + "nocache=" + System.currentTimeMillis());
         for (String line : text.split("\\R")) {
             String trimmed = line.trim();
             if (trimmed.endsWith(apkName)) {
@@ -404,10 +452,14 @@ public final class UpdateActivity extends Activity {
         try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
             byte[] buffer = new byte[64 * 1024];
             int read;
-            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+            while ((read = input.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
         }
         StringBuilder result = new StringBuilder(64);
-        for (byte b : digest.digest()) result.append(String.format(Locale.ROOT, "%02x", b));
+        for (byte b : digest.digest()) {
+            result.append(String.format(Locale.ROOT, "%02x", b));
+        }
         return result.toString();
     }
 
