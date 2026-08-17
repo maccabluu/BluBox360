@@ -35,6 +35,16 @@
         <item name="android:windowBackground">@drawable/library_background</item>
     </style>
 
+    <style name="UpdateTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <style name="SecondScreenTheme" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
