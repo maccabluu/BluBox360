@@ -98,7 +98,8 @@ final class MacCoreBridge: ObservableObject {
     }
 
     var playableEngineExists: Bool {
-        bundledEngineApp(architecture: "arm64") != nil || bundledEngineApp(architecture: "x86_64") != nil
+        bundledEngineApp(architecture: "arm64") != nil ||
+        bundledEngineApp(architecture: "x86_64") != nil
     }
 
     func refresh() {
@@ -106,6 +107,7 @@ final class MacCoreBridge: ObservableObject {
         coreURL = locateBootstrapCore()
         let hasArm = bundledEngineApp(architecture: "arm64") != nil
         let hasX64 = bundledEngineApp(architecture: "x86_64") != nil
+
         if hasArm && hasX64 {
             bundledEngineSummary = "Xenia-Edge Metal engines: arm64 + x86_64"
             statusText = "Experimental Xbox 360 Metal engine ready"
@@ -157,8 +159,8 @@ final class MacCoreBridge: ObservableObject {
                 anisotropic: -1,
                 aspectMode: settings.aspectMode,
                 interlaced: settings.interlaced,
-                asyncShaders: true,
-                skipShaderDraws: true,
+                asyncShaders: settings.asyncShaders,
+                skipShaderDraws: settings.skipShaderDraws,
                 pipelinePreload: false,
                 shaderWorkers: 1,
                 rumble: settings.rumble,
@@ -181,14 +183,20 @@ final class MacCoreBridge: ObservableObject {
         environment["BLUBOX360_TARGET_FPS"] = String(effective.targetFPS)
         environment["BLUBOX360_GRAPHICS_PRESET"] = effective.graphicsPreset
         environment["BLUBOX360_RENDER_SCALE"] = String(effective.renderScale)
+        environment["BLUBOX360_SHOW_FPS"] = effective.showFPS ? "1" : "0"
         environment["BLUBOX360_PROFILE"] = effective.profileName
         environment["BLUBOX360_SAVE_PATH"] = saveFolder.path
         environment["BLUBOX360_SHADER_CACHE"] = MacDataPaths.shaderCache().path
         environment["BLUBOX360_LOG_PATH"] = MacDataPaths.logs().path
         environment["BLUBOX360_PATCH_PATH"] = MacDataPaths.patches().path
+        environment["BLUBOX360_RUMBLE"] = effective.rumble ? "1" : "0"
+        environment["BLUBOX360_APPLY_PATCHES"] = effective.applyPatches ? "1" : "0"
         task.environment = environment
 
         consoleText = "BluBox 360 macOS 3.0\nEngine: \(engine.name) [\(engine.architecture)]\nLaunching \(game.name)…\n"
+        if effective.showFPS {
+            consoleText += "FPS target: \(effective.targetFPS) • in-game FPS overlay depends on the current Metal engine build.\n"
+        }
         statusText = "Starting \(game.name) with \(engine.architecture) Metal engine…"
         currentGameName = game.name
 
@@ -202,13 +210,17 @@ final class MacCoreBridge: ObservableObject {
             output.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-                Task { @MainActor in bridge.appendConsole(text) }
+                Task { @MainActor in
+                    bridge.appendConsole(text)
+                }
             }
 
             task.terminationHandler = { finished in
                 let exitCode = finished.terminationStatus
                 output.fileHandleForReading.readabilityHandler = nil
-                Task { @MainActor in bridge.finishSession(exitCode: exitCode) }
+                Task { @MainActor in
+                    bridge.finishSession(exitCode: exitCode)
+                }
             }
         } catch {
             process = nil
@@ -224,6 +236,7 @@ final class MacCoreBridge: ObservableObject {
             statusText = "Diagnostic bootstrap is unavailable."
             return
         }
+
         let task = Process()
         let output = Pipe()
         task.executableURL = executable
@@ -238,22 +251,35 @@ final class MacCoreBridge: ObservableObject {
             "BLUBOX360_SAVE_PATH": MacDataPaths.gameSaveFolder(game).path,
             "BLUBOX360_SHADER_CACHE": MacDataPaths.shaderCache().path
         ]) { _, new in new }
+
         consoleText = "Running BluBox diagnostic core with \(game.name)…\n"
+        let bridge = self
+
         do {
             try task.run()
             process = task
             isRunning = true
             currentGameName = game.name
-            output.fileHandleForReading.readabilityHandler = { [weak self] handle in
+
+            output.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-                Task { @MainActor in self?.appendConsole(text) }
+                Task { @MainActor in
+                    bridge.appendConsole(text)
+                }
             }
-            task.terminationHandler = { [weak self] finished in
+
+            task.terminationHandler = { finished in
+                let exitCode = finished.terminationStatus
                 output.fileHandleForReading.readabilityHandler = nil
-                Task { @MainActor in self?.finishSession(exitCode: finished.terminationStatus) }
+                Task { @MainActor in
+                    bridge.finishSession(exitCode: exitCode)
+                }
             }
         } catch {
+            process = nil
+            isRunning = false
+            currentGameName = nil
             statusText = "Diagnostic core failed: \(error.localizedDescription)"
         }
     }
@@ -264,19 +290,25 @@ final class MacCoreBridge: ObservableObject {
         statusText = "Stopping game…"
     }
 
-    func clearConsole() { consoleText = "" }
+    func clearConsole() {
+        consoleText = ""
+    }
 
     func clearShaderCache() {
         guard !isRunning else {
             storageStatus = "Close the running game before clearing shader cache."
             return
         }
+
         let folder = MacDataPaths.shaderCache()
         do {
             if FileManager.default.fileExists(atPath: folder.path) {
                 try FileManager.default.removeItem(at: folder)
             }
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: folder,
+                withIntermediateDirectories: true
+            )
             storageStatus = "Shader cache cleared."
         } catch {
             storageStatus = "Shader cache could not be cleared: \(error.localizedDescription)"
@@ -288,12 +320,18 @@ final class MacCoreBridge: ObservableObject {
             storageStatus = "Close the running game before creating a backup."
             return
         }
+
         MacDataPaths.prepare()
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let destination = MacDataPaths.backups().appendingPathComponent("Backup_\(formatter.string(from: Date()))", isDirectory: true)
+        let destination = MacDataPaths.backups()
+            .appendingPathComponent("Backup_\(formatter.string(from: Date()))", isDirectory: true)
+
         do {
-            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: destination,
+                withIntermediateDirectories: true
+            )
             for source in [MacDataPaths.saves(), MacDataPaths.profiles(), MacDataPaths.patches()] {
                 let target = destination.appendingPathComponent(source.lastPathComponent, isDirectory: true)
                 if FileManager.default.fileExists(atPath: source.path) {
@@ -308,25 +346,30 @@ final class MacCoreBridge: ObservableObject {
 
     func checkForUpdates() {
         updateStatus = "Checking GitHub for a newer Mac preview…"
-        guard let url = URL(string: "https://api.github.com/repos/maccabluu/BluBox360/releases?per_page=30") else { return }
+        guard let url = URL(string: "https://api.github.com/repos/maccabluu/BluBox360/releases?per_page=30") else {
+            updateStatus = "Update URL could not be created."
+            return
+        }
+
         var request = URLRequest(url: url)
         request.setValue("BluBox360-macOS/3.0", forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            let message: String
-            if let error {
-                message = "Update check failed: \(error.localizedDescription)"
-            } else if let data,
-                      let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+
+        Task { @MainActor in
+            do {
+                let (data, _) = try await URLSession.shared.data(for: request)
+                guard let releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                    updateStatus = "Update check returned an unreadable response."
+                    return
+                }
                 let tags = releases.compactMap { $0["tag_name"] as? String }
                 let macTags = tags.filter { $0.lowercased().hasPrefix("mac-v") }
-                message = macTags.isEmpty
+                updateStatus = macTags.isEmpty
                     ? "No public macOS release is published yet. You are testing the 3.0 preview track."
                     : "Newest published Mac tag: \(macTags[0])"
-            } else {
-                message = "Update check returned an unreadable response."
+            } catch {
+                updateStatus = "Update check failed: \(error.localizedDescription)"
             }
-            DispatchQueue.main.async { self?.updateStatus = message }
-        }.resume()
+        }
     }
 
     func openCoreFolder() { MacDataPaths.open(MacDataPaths.core()) }
@@ -341,34 +384,57 @@ final class MacCoreBridge: ObservableObject {
     private func xeniaArguments(game: GameEntry, settings: MacLaunchSettings) -> [String] {
         let wide = settings.aspectMode != "4:3"
         let letterbox = settings.aspectMode != "Stretch"
-        var arguments = [
+        let fps = settings.targetFPS <= 30 ? 30 : 60
+
+        var internalResolution = settings.renderScale >= 2 ? 16 : 8
+        var scaler = normalizedUpscaler(settings.upscaler)
+        var antialiasing = normalizedAntialiasing(settings.antialiasing)
+
+        if settings.graphicsPreset == "Performance" {
+            internalResolution = 8
+            scaler = "bilinear"
+            antialiasing = "none"
+        } else if settings.graphicsPreset == "HD+" {
+            internalResolution = 16
+            scaler = "fsr"
+            antialiasing = "fxaa"
+        }
+
+        return [
             "--gpu=metal",
+            "--apu=sdl",
+            "--hid=sdl",
+            "--storage_root=\(MacDataPaths.root().path)",
+            "--content_root=\(MacDataPaths.saves().path)",
+            "--cache_root=\(MacDataPaths.shaderCache().path)",
             "--log_file=stdout",
-            "--show_debug_overlay=\(settings.showFPS ? "true" : "false")",
-            "--framerate_limit=\(settings.targetFPS)",
-            "--draw_resolution_scale_x=\(settings.renderScale)",
-            "--draw_resolution_scale_y=\(settings.renderScale)",
-            "--postprocess_scaling_and_sharpening=\(settings.upscaler)",
-            "--postprocess_antialiasing=\(settings.antialiasing)",
-            "--anisotropic_override=\(settings.anisotropic)",
+            "--framerate_limit=\(fps)",
+            "--vsync=true",
+            "--internal_display_resolution=\(internalResolution)",
+            "--postprocess_scaling_and_sharpening=\(scaler)",
+            "--postprocess_antialiasing=\(antialiasing)",
             "--widescreen=\(wide ? "true" : "false")",
             "--present_letterbox=\(letterbox ? "true" : "false")",
-            "--interlaced=\(settings.interlaced ? "true" : "false")",
-            "--async_shader_compilation=\(settings.asyncShaders ? "true" : "false")",
-            "--async_shader_vs_interpreter=\(settings.asyncShaders ? "true" : "false")",
-            "--async_shader_skip_draws=\(settings.skipShaderDraws ? "true" : "false")",
-            "--pipeline_storage_precreate=\(settings.pipelinePreload ? "true" : "false")",
-            "--vulkan_pipeline_creation_threads=\(settings.shaderWorkers)",
-            "--vibration=\(settings.rumble ? "true" : "false")",
-            "--apply_patches=\(settings.applyPatches ? "true" : "false")"
+            "--store_shaders=true",
+            "--fullscreen=false",
+            game.path
         ]
-        if settings.graphicsPreset == "Performance" {
-            arguments += ["--postprocess_scaling_and_sharpening=none", "--postprocess_antialiasing=off"]
-        } else if settings.graphicsPreset == "HD+" {
-            arguments += ["--postprocess_scaling_and_sharpening=fsr", "--postprocess_antialiasing=fxaa"]
+    }
+
+    private func normalizedUpscaler(_ value: String) -> String {
+        switch value.lowercased() {
+        case "cas": return "cas"
+        case "fsr": return "fsr"
+        default: return "bilinear"
         }
-        arguments.append(game.path)
-        return arguments
+    }
+
+    private func normalizedAntialiasing(_ value: String) -> String {
+        switch value.lowercased() {
+        case "fxaa": return "fxaa"
+        case "fxaa_extreme": return "fxaa_extreme"
+        default: return "none"
+        }
     }
 
     private func selectEngine(mode: String) -> EngineChoice? {
@@ -390,7 +456,9 @@ final class MacCoreBridge: ObservableObject {
 
     private func choice(architecture: String) -> EngineChoice? {
         guard let app = bundledEngineApp(architecture: architecture),
-              let executable = executableInApp(app) else { return nil }
+              let executable = executableInApp(app) else {
+            return nil
+        }
         return EngineChoice(
             executable: executable,
             name: "Xenia-Edge Metal",
@@ -412,10 +480,18 @@ final class MacCoreBridge: ObservableObject {
         if let dictionary = NSDictionary(contentsOf: plist),
            let name = dictionary["CFBundleExecutable"] as? String {
             let executable = app.appendingPathComponent("Contents/MacOS/\(name)")
-            if FileManager.default.isExecutableFile(atPath: executable.path) { return executable }
+            if FileManager.default.isExecutableFile(atPath: executable.path) {
+                return executable
+            }
         }
+
         let folder = app.appendingPathComponent("Contents/MacOS", isDirectory: true)
-        guard let entries = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return nil }
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: folder,
+            includingPropertiesForKeys: nil
+        ) else {
+            return nil
+        }
         return entries.first { FileManager.default.isExecutableFile(atPath: $0.path) }
     }
 
@@ -439,6 +515,7 @@ final class MacCoreBridge: ObservableObject {
     private func locateBootstrapCore() -> URL? {
         let fileManager = FileManager.default
         var candidates: [URL] = []
+
         if let override = ProcessInfo.processInfo.environment["BLUBOX360_MAC_CORE"],
            !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             candidates.append(URL(fileURLWithPath: override))
@@ -447,12 +524,20 @@ final class MacCoreBridge: ObservableObject {
             candidates.append(resourceURL.appendingPathComponent("blubox360-core"))
         }
         candidates.append(MacDataPaths.core().appendingPathComponent("blubox360-core"))
+
         return candidates.first { fileManager.isExecutableFile(atPath: $0.path) }
     }
 
     private func installBundledPatchesIfNeeded() {
-        guard let sourceFolder = Bundle.main.resourceURL?.appendingPathComponent("Patches", isDirectory: true),
-              let files = try? FileManager.default.contentsOfDirectory(at: sourceFolder, includingPropertiesForKeys: nil) else { return }
+        guard let sourceFolder = Bundle.main.resourceURL?
+            .appendingPathComponent("Patches", isDirectory: true),
+              let files = try? FileManager.default.contentsOfDirectory(
+                at: sourceFolder,
+                includingPropertiesForKeys: nil
+              ) else {
+            return
+        }
+
         MacDataPaths.prepare()
         for source in files where source.pathExtension.lowercased() == "toml" {
             let destination = MacDataPaths.patches().appendingPathComponent(source.lastPathComponent)
@@ -462,7 +547,9 @@ final class MacCoreBridge: ObservableObject {
         }
     }
 
-    private func appendConsole(_ text: String) { consoleText.append(text) }
+    private func appendConsole(_ text: String) {
+        consoleText.append(text)
+    }
 
     private func finishSession(exitCode: Int32) {
         isRunning = false
@@ -485,7 +572,9 @@ enum MacDiagnostics {
         #endif
     }
 
-    static var metalDevice: String { MTLCreateSystemDefaultDevice()?.name ?? "No Metal device found" }
+    static var metalDevice: String {
+        MTLCreateSystemDefaultDevice()?.name ?? "No Metal device found"
+    }
 
     static var controllerSummary: String {
         let count = GCController.controllers().count
@@ -513,12 +602,16 @@ enum MacDiagnostics {
         ProcessInfo.processInfo.isLowPowerModeEnabled
     }
 
-    static var lowPowerMode: String { ProcessInfo.processInfo.isLowPowerModeEnabled ? "On" : "Off" }
+    static var lowPowerMode: String {
+        ProcessInfo.processInfo.isLowPowerModeEnabled ? "On" : "Off"
+    }
 
     static var memory: String {
         let gib = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824.0
         return String(format: "%.1f GB", gib)
     }
 
-    static var macOSVersion: String { ProcessInfo.processInfo.operatingSystemVersionString }
+    static var macOSVersion: String {
+        ProcessInfo.processInfo.operatingSystemVersionString
+    }
 }
