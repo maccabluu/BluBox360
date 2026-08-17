@@ -30,7 +30,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-            android:text="BluBox 360 profiles"
+                android:text="BluBox 360 profiles"
                 android:textColor="@color/text"
                 android:textSize="22sp"
                 android:textStyle="bold" />
@@ -87,7 +87,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:text="Each Xbox 360 account keeps its own local progress and full-body BluBox avatar."
+                android:text="Each Xbox 360 account keeps its own local progress and profile photo."
                 android:textColor="@color/muted"
                 android:textSize="10sp" />
 
@@ -119,21 +119,31 @@
                 android:id="@+id/profileEditorTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Edit avatar"
+                android:text="Edit profile"
                 android:textColor="@color/text"
                 android:textSize="19sp"
                 android:textStyle="bold" />
 
             <uk.co.blustudio.blubox360.AvatarView
                 android:id="@+id/profileEditorAvatar"
-                android:layout_width="154dp"
-                android:layout_height="154dp"
-                android:layout_marginTop="5dp" />
+                android:layout_width="170dp"
+                android:layout_height="170dp"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="Profile photo"
+                android:textColor="@color/muted"
+                android:textSize="10sp" />
 
             <EditText
                 android:id="@+id/gamertagInput"
                 android:layout_width="match_parent"
                 android:layout_height="46dp"
+                android:layout_marginTop="9dp"
                 android:background="@drawable/button_secondary"
                 android:hint="Gamertag"
                 android:inputType="textCapWords"
@@ -144,24 +154,32 @@
                 android:textColor="@color/text"
                 android:textColorHint="@color/muted" />
 
-            <LinearLayout
+            <Button
+                android:id="@+id/choosePhotoButton"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/button_primary"
+                android:text="Choose profile photo"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/removePhotoButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="7dp"
+                android:text="Remove photo"
+                android:textSize="11sp" />
+
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginTop="7dp"
+                android:layout_marginTop="9dp"
                 android:layout_weight="1"
-                android:orientation="vertical">
-
-                <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal">
-                    <Button android:id="@+id/skinButton" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Skin" android:textSize="11sp" />
-                    <Button android:id="@+id/hairButton" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="6dp" android:layout_weight="1" android:text="Hair" android:textSize="11sp" />
-                    <Button android:id="@+id/outfitButton" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="6dp" android:layout_weight="1" android:text="Outfit" android:textSize="11sp" />
-                </LinearLayout>
-
-                <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_marginTop="6dp" android:layout_weight="1" android:orientation="horizontal">
-                    <Button android:id="@+id/expressionButton" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="Expression" android:textSize="10sp" />
-                    <Button android:id="@+id/backgroundButton" android:layout_width="0dp" android:layout_height="match_parent" android:layout_marginStart="6dp" android:layout_weight="1" android:text="Background" android:textSize="10sp" />
-                </LinearLayout>
-            </LinearLayout>
+                android:gravity="top|center_horizontal"
+                android:text="Choose a photo from your device. BluBox stores a local copy for this profile."
+                android:textColor="@color/muted"
+                android:textSize="10sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
