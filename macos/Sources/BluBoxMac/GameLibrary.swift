@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 struct GameEntry: Identifiable, Codable, Hashable {
     let id: UUID
@@ -204,7 +205,11 @@ final class GameLibrary: ObservableObject {
         let folder = support
             .appendingPathComponent("BluBox 360", isDirectory: true)
             .appendingPathComponent("Covers", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: folder,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
         return folder
     }
 
