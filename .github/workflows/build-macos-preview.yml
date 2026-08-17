@@ -31,30 +31,38 @@ jobs:
           file macos/CoreProbe/build/blubox-jit-probe
           macos/CoreProbe/build/blubox-jit-probe
 
-      - name: Build universal Mac 2.2 preview
+      - name: Build universal Mac 2.3 preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_VERSION=2.2.0-preview ./macos/build-macos.sh
+          BLUBOX_MAC_VERSION=2.3.0-preview ./macos/build-macos.sh
 
-      - name: Verify app and startup
+      - name: Verify app startup and native core bootstrap
         run: |
           app='macos/dist/BluBox 360.app'
           binary="$app/Contents/MacOS/BluBox360"
+          core="$app/Contents/Resources/blubox360-core"
+
           file "$binary"
-          lipo -info "$binary"
           lipo -archs "$binary" | grep -q arm64
           lipo -archs "$binary" | grep -q x86_64
+
+          file "$core"
+          lipo -archs "$core" | grep -q arm64
+          lipo -archs "$core" | grep -q x86_64
+
           codesign --verify --deep --strict --verbose=2 "$app"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^2.2.0$'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^2.3.0$'
           "$binary" --self-test | grep -q 'startup self-test passed'
+          "$core" --self-test | grep -q 'native core bootstrap self-test passed'
+          "$core" --capabilities | grep -q '"xbox360_execution":false'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
-      - name: Upload Mac 2.2 preview build
+      - name: Upload Mac 2.3 preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-2.2.0-preview-Universal
+          name: BluBox-360-Mac-2.3.0-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-2.2.0-preview-Universal.zip
-            macos/dist/BluBox-360-Mac-2.2.0-preview-Universal.dmg
+            macos/dist/BluBox-360-Mac-2.3.0-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-2.3.0-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
