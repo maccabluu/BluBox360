@@ -67,22 +67,20 @@ final class MacCoreBridge: ObservableObject {
             isRunning = true
             statusText = "\(game.name) is running"
 
-            output.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let bridge = self
+            output.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
                 Task { @MainActor in
-                    self?.consoleText.append(text)
+                    bridge.appendConsole(text)
                 }
             }
 
-            task.terminationHandler = { [weak self] finished in
+            task.terminationHandler = { finished in
+                let exitCode = finished.terminationStatus
                 output.fileHandleForReading.readabilityHandler = nil
                 Task { @MainActor in
-                    self?.isRunning = false
-                    self?.process = nil
-                    self?.statusText = finished.terminationStatus == 0
-                        ? "Game session finished"
-                        : "Core exited with code \(finished.terminationStatus)"
+                    bridge.finishSession(exitCode: exitCode)
                 }
             }
         } catch {
@@ -100,8 +98,24 @@ final class MacCoreBridge: ObservableObject {
 
     func openCoreFolder() {
         let folder = applicationSupportCoreDirectory()
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(
+            at: folder,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
         NSWorkspace.shared.open(folder)
+    }
+
+    private func appendConsole(_ text: String) {
+        consoleText.append(text)
+    }
+
+    private func finishSession(exitCode: Int32) {
+        isRunning = false
+        process = nil
+        statusText = exitCode == 0
+            ? "Game session finished"
+            : "Core exited with code \(exitCode)"
     }
 
     private func locateCore() -> URL? {
