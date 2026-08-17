@@ -1,3 +1,3 @@
-BluBox 360 0.14.0 public alpha
+BluBox 360 0.15.0 public alpha
 Android ARM64 (minSdk 29, targetSdk 35)
 Package: uk.co.blustudio.blubox360
