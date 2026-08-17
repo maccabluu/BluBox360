@@ -84,15 +84,15 @@ jobs:
             macos/CoreProbe/build/blubox-jit-probe
           fi
 
-      - name: Build universal Mac 3.0 preview
+      - name: Build universal Mac 3.0.1 preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_VERSION=3.0.0-preview \
+          BLUBOX_MAC_VERSION=3.0.1-preview \
           BLUBOX_XENIA_ARM_APP="$PWD/macos/ExternalEngines/arm64/Xenia-Edge.app" \
           BLUBOX_XENIA_X64_APP="$PWD/macos/ExternalEngines/x86_64/Xenia-Edge.app" \
           ./macos/build-macos.sh
 
-      - name: Verify app startup branding and playable engines
+      - name: Verify app startup branding and launch sanitizer
         run: |
           set -euo pipefail
           app='macos/dist/BluBox 360.app'
@@ -114,11 +114,14 @@ jobs:
           test -s "$app/Contents/Resources/BluBox.icns"
           cmp app/src/main/res/drawable-nodpi/blubox_logo.png "$app/Contents/Resources/blubox_logo.png"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist" | grep -q '^BluBox.icns$'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^3.0.0$'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^3.0.1$'
           /usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist" | grep -q '^15.0$'
 
           lipo -archs "$arm_app/Contents/MacOS/$arm_exec" | grep -q arm64
           lipo -archs "$x64_app/Contents/MacOS/$x64_exec" | grep -q x86_64
+          lipo -archs "$arm_app/Contents/MacOS/xenia_edge.real" | grep -q arm64
+          lipo -archs "$x64_app/Contents/MacOS/xenia_edge.real" | grep -q x86_64
+          "$arm_app/Contents/MacOS/$arm_exec" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
           codesign --verify --deep --strict --verbose=2 "$arm_app"
           codesign --verify --deep --strict --verbose=2 "$x64_app"
           codesign --verify --deep --strict --verbose=2 "$app"
@@ -128,12 +131,12 @@ jobs:
           "$core" --capabilities | grep -q '"xbox360_execution":false'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
-      - name: Upload Mac 3.0 preview build
+      - name: Upload Mac 3.0.1 preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-3.0.0-preview-Universal
+          name: BluBox-360-Mac-3.0.1-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-3.0.0-preview-Universal.zip
-            macos/dist/BluBox-360-Mac-3.0.0-preview-Universal.dmg
+            macos/dist/BluBox-360-Mac-3.0.1-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-3.0.1-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
