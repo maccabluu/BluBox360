@@ -8,7 +8,7 @@ app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-version=${BLUBOX_MAC_VERSION:-3.0.0-preview}
+version=${BLUBOX_MAC_VERSION:-3.0.1-preview}
 arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx15.0}
 intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx15.0}
 xenia_arm_app=${BLUBOX_XENIA_ARM_APP:-}
@@ -90,8 +90,6 @@ if [[ -f "$root/XENIA_MAC_NOTICE.md" ]]; then
 fi
 
 # Bundle both Xenia-Edge macOS architectures when supplied by CI.
-# These remain separate because the upstream macOS project currently has different
-# compatibility characteristics between native arm64 and x86_64/Rosetta builds.
 if [[ -n "$xenia_arm_app" && -d "$xenia_arm_app" ]]; then
   mkdir -p "$resources/Engines/arm64"
   ditto "$xenia_arm_app" "$resources/Engines/arm64/Xenia-Edge.app"
@@ -100,6 +98,42 @@ if [[ -n "$xenia_x64_app" && -d "$xenia_x64_app" ]]; then
   mkdir -p "$resources/Engines/x86_64"
   ditto "$xenia_x64_app" "$resources/Engines/x86_64/Xenia-Edge.app"
 fi
+
+# BluBox 3.0.1 hotfix: the Swift shell has more settings than the current
+# Xenia-Edge command-line parser accepts. Put a tiny architecture-matched
+# launcher in front of each engine. It forwards only options verified in the
+# current Xenia macOS source and ignores unsupported BluBox-only options.
+wrap_xenia_engine() {
+  local engine_app="$1"
+  local arch="$2"
+  [[ -d "$engine_app" ]] || return 0
+
+  local exec_name
+  exec_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$engine_app/Contents/Info.plist")
+  local exec_path="$engine_app/Contents/MacOS/$exec_name"
+  local real_path="$engine_app/Contents/MacOS/xenia_edge.real"
+
+  if [[ ! -x "$exec_path" ]]; then
+    echo "Xenia executable missing: $exec_path" >&2
+    exit 1
+  fi
+
+  mv "$exec_path" "$real_path"
+  clang -O2 -arch "$arch" -mmacosx-version-min=15.0 \
+    "$root/EngineLauncher/blubox_xenia_launcher.c" \
+    -o "$exec_path"
+  chmod +x "$exec_path" "$real_path"
+  codesign --force --sign - "$exec_path"
+
+  # Re-seal the app after adding the wrapper. The moved original Xenia binary
+  # keeps its own upstream code signature and JIT entitlements.
+  codesign --force --sign - "$engine_app"
+
+  "$exec_path" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
+}
+
+wrap_xenia_engine "$resources/Engines/arm64/Xenia-Edge.app" arm64
+wrap_xenia_engine "$resources/Engines/x86_64/Xenia-Edge.app" x86_64
 
 cat > "$contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -121,9 +155,9 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.0</string>
+    <string>3.0.1</string>
     <key>CFBundleVersion</key>
-    <string>30</string>
+    <string>31</string>
     <key>CFBundleIconFile</key>
     <string>BluBox.icns</string>
     <key>LSMinimumSystemVersion</key>
@@ -143,7 +177,6 @@ cat > "$contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Preserve the signatures/entitlements of the bundled experimental engines.
 # The BluBox shell and diagnostic helper use ad-hoc signatures for private preview testing.
 codesign --force --sign - "$app"
 
@@ -158,7 +191,7 @@ ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
-  -volname "BluBox 360 3.0" \
+  -volname "BluBox 360 3.0.1" \
   -srcfolder "$staging" \
   -ov \
   -format UDZO \
@@ -167,7 +200,7 @@ hdiutil create \
 rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS 3.0 universal preview:"
+echo "Built BluBox 360 macOS 3.0.1 universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
 echo "  diagnostic core: $core_universal"
