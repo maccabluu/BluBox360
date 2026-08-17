@@ -40,16 +40,16 @@ jobs:
           chmod +x ./build-direct.sh
           ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" ./build-direct.sh
 
-      - name: Confirm updater classes are packaged
+      - name: Confirm updater manifest entries are packaged
         shell: bash
         run: |
           set -euo pipefail
           apk="app/build/outputs/apk/release/BluBox-360-0.15.0-alpha-arm64-unsigned.apk"
           test -f "$apk"
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt2" dump xmltree "$apk" AndroidManifest.xml \
-            | grep -q "UpdateActivity"
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt2" dump xmltree "$apk" AndroidManifest.xml \
-            | grep -q "REQUEST_INSTALL_PACKAGES"
+          manifest_dump=$("$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt2" dump xmltree \
+            --file AndroidManifest.xml "$apk")
+          grep -q "UpdateActivity" <<< "$manifest_dump"
+          grep -q "REQUEST_INSTALL_PACKAGES" <<< "$manifest_dump"
 
       - name: Upload verification APK
         uses: actions/upload-artifact@v4
