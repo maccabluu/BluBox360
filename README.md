@@ -13,20 +13,25 @@ and its saves are not replaced.
 
 ## Download the public alpha
 
-[Download BluBox 360 0.15.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.15.0-alpha/BluBox-360-0.15.0-alpha-arm64.apk)
+[Download BluBox 360 0.15.1-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.15.1-alpha/BluBox-360-0.15.1-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required. Back up profiles and saves
-before installing an alpha build. BluBox 360 0.15.0 is the first release signed
-with the permanent BluBox release certificate. Moving from 0.14.0 requires one
-final uninstall because 0.14.0 used a temporary certificate. From 0.15.0 onward,
-future releases signed with the same permanent certificate are designed to
-install as normal updates without removing BluBox data.
+before installing an alpha build. BluBox 360 0.15.0 established the permanent
+BluBox release certificate, and 0.15.1 uses the same certificate. Users already
+on 0.15.0 should be able to install 0.15.1 directly over the existing app without
+uninstalling or removing BluBox data. Moving directly from 0.14.0 still requires
+one final uninstall because 0.14.0 used a temporary certificate.
 
 APK SHA-256:
-`9e68ef1ef2244429064550ac75e7329b8768ae903feb709de29e407c50a7f6bf`
+`52f054c9f50bcdbf0466d8a0122ca1e1d21248ada1b17de402d79ea9372af14f`
 
-## Included in 0.15.0 public alpha
+## Included in 0.15.1 public alpha
 
+- Fixed the updater incorrectly reporting old releases as newer updates
+- Re-checks the installed version before showing an update prompt or downloading an APK
+- Bypasses stale GitHub release cache data during update checks
+- Shows update prompts only when the published release tag is newer than the installed version
+- Displays the version from the GitHub release tag instead of stale release-title data
 - Built-in update checking against the official BluBox GitHub Releases feed
 - Update prompts with **Update now**, **What's new**, and **Later** choices
 - In-app APK download with progress and SHA-256 verification before installation
@@ -89,7 +94,7 @@ APK SHA-256:
 
 ## Install and use
 
-1. Install `BluBox-360-0.15.0-alpha-arm64.apk` on an ARM64 Android device.
+1. Install `BluBox-360-0.15.1-alpha-arm64.apk` on an ARM64 Android device.
 2. Allow installation from your browser or file manager if Android asks.
 3. Open BluBox 360 and grant All files access. Large disc images remain on your
    microSD card and are not copied into the app.
@@ -101,15 +106,21 @@ APK SHA-256:
 
 ## Built-in updates
 
-BluBox checks the official GitHub Releases feed after launch. When a newer alpha
-is available, choose **Update now** to download it inside BluBox, **What's new**
-to read the release notes, or **Later** to continue using the current version.
-BluBox verifies the downloaded APK against the release SHA-256 file when one is
-supplied, then Android's Package Installer handles the final installation step.
+BluBox checks the official GitHub Releases feed after launch. Version 0.15.1
+fixes the first updater so the popup appears only when the release tag is newer
+than the version already installed. The updater bypasses stale release-cache data
+and re-checks the installed version before showing the prompt or starting a
+download.
 
-Version 0.15.0 establishes the permanent BluBox signing certificate. Future
-releases must use the same certificate so Android accepts them as updates and
-preserves installed BluBox data.
+When a newer alpha is available, choose **Update now** to download it inside
+BluBox, **What's new** to read the release notes, or **Later** to continue using
+the current version. BluBox verifies the downloaded APK against the release
+SHA-256 file when one is supplied, then Android's Package Installer handles the
+final installation step.
+
+Version 0.15.0 established the permanent BluBox signing certificate and 0.15.1
+uses the same certificate. Future releases must keep using this certificate so
+Android accepts them as updates and preserves installed BluBox data.
 
 ## Profile photos
 
@@ -190,7 +201,7 @@ Performance mode, then try Balanced or HD. No games, Xbox firmware, encryption
 keys, or Microsoft code are included.
 
 Fable II title ID `4D5307F1` receives a conservative automatic preset at launch.
-Version 0.15.0 keeps the existing shader cache, compiles missing pipelines with
+Version 0.15.1 keeps the existing shader cache, compiles missing pipelines with
 two background workers, skips unfinished draws, and limits output to 24 FPS.
 BluBox memory patches and the title-specific Fable II 60 FPS and High Tick Rate
 patches remain off.
