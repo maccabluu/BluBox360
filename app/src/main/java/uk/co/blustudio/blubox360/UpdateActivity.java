@@ -29,11 +29,17 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class UpdateActivity extends Activity {
     private static final String RELEASES_URL =
             "https://api.github.com/repos/maccabluu/BluBox360/releases?per_page=20";
-    private static final String BUILD_VERSION_FLOOR = "0.15.1-alpha";
+    private static final String BUILD_VERSION_FLOOR = "0.16.1-alpha";
+    private static final Pattern CANONICAL_RELEASE_TAG = Pattern.compile(
+            "^v\\d+\\.\\d+\\.\\d+-alpha$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern VERSION_TRIPLE = Pattern.compile(
+            "(\\d+)\\.(\\d+)\\.(\\d+)");
     private static final long MIN_CHECK_INTERVAL_MS = 15L * 60L * 1000L;
     private static final String PREFS = "blubox360_updates";
     private static final String PREF_LAST_CHECK = "last_check_ms";
@@ -120,8 +126,9 @@ public final class UpdateActivity extends Activity {
             if (release == null || release.optBoolean("draft", false)) continue;
             if (release.optString("published_at", "").isBlank()) continue;
 
-            String tag = release.optString("tag_name", "");
-            if (tag.isBlank() || compareVersions(tag, currentVersion) <= 0) continue;
+            String tag = release.optString("tag_name", "").trim();
+            if (!isCanonicalReleaseTag(tag)) continue;
+            if (compareVersions(tag, currentVersion) <= 0) continue;
 
             JSONArray assets = release.optJSONArray("assets");
             if (assets == null) continue;
@@ -164,7 +171,8 @@ public final class UpdateActivity extends Activity {
     private void showUpdateDialog(UpdateInfo info) {
         if (isFinishing()) return;
 
-        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+        if (!isCanonicalReleaseTag(info.tag)
+                || compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
             finish();
             return;
         }
@@ -172,7 +180,7 @@ public final class UpdateActivity extends Activity {
         String size = info.apkSize > 0
                 ? String.format(Locale.UK, "%.1f MB", info.apkSize / 1024d / 1024d)
                 : "APK download";
-        String version = cleanVersion(info.tag);
+        String version = displayVersion(info.tag);
 
         new AlertDialog.Builder(this)
                 .setTitle("BluBox 360 update available")
@@ -186,7 +194,8 @@ public final class UpdateActivity extends Activity {
     }
 
     private void showReleaseNotes(UpdateInfo info) {
-        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+        if (!isCanonicalReleaseTag(info.tag)
+                || compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
             finish();
             return;
         }
@@ -202,7 +211,8 @@ public final class UpdateActivity extends Activity {
 
     @SuppressWarnings("deprecation")
     private void downloadUpdate(UpdateInfo info) {
-        if (compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
+        if (!isCanonicalReleaseTag(info.tag)
+                || compareVersions(info.tag, effectiveCurrentVersion()) <= 0) {
             finish();
             return;
         }
@@ -364,6 +374,10 @@ public final class UpdateActivity extends Activity {
                 ? reported : BUILD_VERSION_FLOOR;
     }
 
+    private static boolean isCanonicalReleaseTag(String tag) {
+        return tag != null && CANONICAL_RELEASE_TAG.matcher(tag.trim()).matches();
+    }
+
     private static int compareVersions(String first, String second) {
         int[] a = versionNumbers(first);
         int[] b = versionNumbers(second);
@@ -374,15 +388,12 @@ public final class UpdateActivity extends Activity {
     }
 
     private static int[] versionNumbers(String value) {
-        String clean = cleanVersion(value);
-        int dash = clean.indexOf('-');
-        if (dash >= 0) clean = clean.substring(0, dash);
-        String[] parts = clean.split("\\.");
         int[] result = new int[] {0, 0, 0};
-        for (int i = 0; i < Math.min(3, parts.length); i++) {
+        Matcher matcher = VERSION_TRIPLE.matcher(value == null ? "" : value);
+        if (!matcher.find()) return result;
+        for (int i = 0; i < 3; i++) {
             try {
-                String digits = parts[i].replaceAll("[^0-9]", "");
-                result[i] = digits.isBlank() ? 0 : Integer.parseInt(digits);
+                result[i] = Integer.parseInt(matcher.group(i + 1));
             } catch (NumberFormatException ignored) {
                 result[i] = 0;
             }
@@ -394,6 +405,14 @@ public final class UpdateActivity extends Activity {
         String clean = value == null ? "" : value.trim();
         if (clean.startsWith("v") || clean.startsWith("V")) {
             clean = clean.substring(1);
+        }
+        return clean;
+    }
+
+    private static String displayVersion(String value) {
+        String clean = cleanVersion(value);
+        if (clean.toLowerCase(Locale.ROOT).endsWith("-alpha")) {
+            clean = clean.substring(0, clean.length() - "-alpha".length());
         }
         return clean;
     }
