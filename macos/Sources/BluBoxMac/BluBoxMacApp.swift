@@ -3,9 +3,30 @@ import AppKit
 import Darwin
 
 final class BluBoxAppDelegate: NSObject, NSApplicationDelegate {
+    private func repairWindows() {
+        DispatchQueue.main.async {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+            for window in NSApp.windows {
+                window.ignoresMouseEvents = false
+                window.acceptsMouseMovedEvents = true
+                window.isMovableByWindowBackground = false
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
+        repairWindows()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        repairWindows()
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        repairWindows()
+        return true
     }
 }
 
@@ -29,8 +50,13 @@ struct BluBoxMacApp: App {
                 .environmentObject(library)
                 .environmentObject(core)
                 .frame(minWidth: 980, minHeight: 650)
+                .background(WindowInteractionFix().allowsHitTesting(false))
                 .onAppear {
                     NSApp.activate(ignoringOtherApps: true)
+                    for window in NSApp.windows {
+                        window.ignoresMouseEvents = false
+                        window.makeKeyAndOrderFront(nil)
+                    }
                 }
         }
         .windowStyle(.titleBar)
