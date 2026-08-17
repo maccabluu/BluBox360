@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: blubox-macos-preview
+  cancel-in-progress: true
+
 jobs:
   build-macos-preview:
     runs-on: macos-15
@@ -121,9 +125,11 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist" | grep -q '^32$'
           /usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist" | grep -q '^15.0$'
 
-          strings "$binary" | grep -q 'Software Update'
-          strings "$binary" | grep -q 'api.github.com/repos/maccabluu/BluBox360/releases'
-          strings "$binary" | grep -q 'SHA256SUMS.txt'
+          strings_file="$RUNNER_TEMP/blubox360-strings.txt"
+          strings "$binary" > "$strings_file"
+          grep -Fq 'Software Update' "$strings_file"
+          grep -Fq 'api.github.com/repos/maccabluu/BluBox360/releases' "$strings_file"
+          grep -Fq 'SHA256SUMS.txt' "$strings_file"
 
           lipo -archs "$arm_app/Contents/MacOS/$arm_exec" | grep -q arm64
           lipo -archs "$x64_app/Contents/MacOS/$x64_exec" | grep -q x86_64
@@ -163,6 +169,7 @@ jobs:
 
           - Adds **BluBox 360 > Software Update…** inside the app.
           - Shows your installed version, the latest available Mac version, status, and release notes.
+          - Shows an in-app update banner when a newer Mac preview is available.
           - Checks for a newer Mac preview automatically after launch.
           - Adds **Update Now** for future Mac updates.
           - Downloads the Mac ZIP from GitHub Releases and verifies it against `SHA256SUMS.txt` before installing.
