@@ -6,12 +6,16 @@ on:
       - macos-preview
     paths:
       - 'macos/**'
+      - 'app/src/main/res/drawable-nodpi/blubox_launcher_icon.png'
+      - 'app/src/main/res/drawable-nodpi/blubox_logo.png'
+      - 'app/src/main/assets/patches/**'
+      - 'licenses/**'
       - '.github/workflows/build-macos-preview.yml'
   workflow_dispatch:
 
 jobs:
   build-macos-preview:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Check out BluBox 360
         uses: actions/checkout@v4
@@ -22,47 +26,114 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Download verified Xenia-Edge Metal engines
+        run: |
+          set -euo pipefail
+          mkdir -p macos/ExternalDownloads macos/ExternalEngines/arm64 macos/ExternalEngines/x86_64
+
+          curl -L --fail --retry 3 \
+            -o macos/ExternalDownloads/xenia-arm64.dmg \
+            https://github.com/wmarti/xenia-mac/releases/download/v0.2.1/xenia_edge_macos_arm64_v0.2.1.dmg
+          curl -L --fail --retry 3 \
+            -o macos/ExternalDownloads/xenia-x86_64.dmg \
+            https://github.com/wmarti/xenia-mac/releases/download/v0.2.1/xenia_edge_macos_x86_64_v0.2.1.dmg
+
+          echo '351c67156e040f9ca854b6160edd536d4eae1513d1a891b5d2df339a56dac90a  macos/ExternalDownloads/xenia-arm64.dmg' | shasum -a 256 -c -
+          echo '70569c77c443f12faccd638d65a0b920125076eccad5914121a38133d7014577  macos/ExternalDownloads/xenia-x86_64.dmg' | shasum -a 256 -c -
+
+          extract_engine() {
+            local dmg="$1"
+            local destination="$2"
+            local mountpoint
+            mountpoint=$(mktemp -d /tmp/blubox-xenia.XXXXXX)
+            hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mountpoint"
+            local source_app
+            source_app=$(find "$mountpoint" -maxdepth 2 -type d -name '*.app' -print -quit)
+            if [[ -z "$source_app" ]]; then
+              hdiutil detach "$mountpoint" || true
+              echo "No app bundle found in $dmg" >&2
+              exit 1
+            fi
+            ditto "$source_app" "$destination/Xenia-Edge.app"
+            hdiutil detach "$mountpoint"
+            rmdir "$mountpoint" || true
+          }
+
+          extract_engine macos/ExternalDownloads/xenia-arm64.dmg macos/ExternalEngines/arm64
+          extract_engine macos/ExternalDownloads/xenia-x86_64.dmg macos/ExternalEngines/x86_64
+
+          arm_app='macos/ExternalEngines/arm64/Xenia-Edge.app'
+          x64_app='macos/ExternalEngines/x86_64/Xenia-Edge.app'
+          arm_exec=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$arm_app/Contents/Info.plist")
+          x64_exec=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$x64_app/Contents/Info.plist")
+          file "$arm_app/Contents/MacOS/$arm_exec"
+          file "$x64_app/Contents/MacOS/$x64_exec"
+          lipo -archs "$arm_app/Contents/MacOS/$arm_exec" | grep -q arm64
+          lipo -archs "$x64_app/Contents/MacOS/$x64_exec" | grep -q x86_64
+          codesign --verify --deep --strict --verbose=2 "$arm_app"
+          codesign --verify --deep --strict --verbose=2 "$x64_app"
+
       - name: Run Apple Silicon JIT host probe
         run: |
           mkdir -p macos/CoreProbe/build
-          clang -arch arm64 -mmacosx-version-min=13.0 \
+          clang -arch arm64 -mmacosx-version-min=15.0 \
             macos/CoreProbe/jit_probe.c \
             -o macos/CoreProbe/build/blubox-jit-probe
           file macos/CoreProbe/build/blubox-jit-probe
-          macos/CoreProbe/build/blubox-jit-probe
+          if [[ "$(uname -m)" == "arm64" ]]; then
+            macos/CoreProbe/build/blubox-jit-probe
+          fi
 
-      - name: Build universal Mac 2.3 preview
+      - name: Build universal Mac 3.0 preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_VERSION=2.3.0-preview ./macos/build-macos.sh
+          BLUBOX_MAC_VERSION=3.0.0-preview \
+          BLUBOX_XENIA_ARM_APP="$PWD/macos/ExternalEngines/arm64/Xenia-Edge.app" \
+          BLUBOX_XENIA_X64_APP="$PWD/macos/ExternalEngines/x86_64/Xenia-Edge.app" \
+          ./macos/build-macos.sh
 
-      - name: Verify app startup and native core bootstrap
+      - name: Verify app startup branding and playable engines
         run: |
+          set -euo pipefail
           app='macos/dist/BluBox 360.app'
           binary="$app/Contents/MacOS/BluBox360"
           core="$app/Contents/Resources/blubox360-core"
+          arm_app="$app/Contents/Resources/Engines/arm64/Xenia-Edge.app"
+          x64_app="$app/Contents/Resources/Engines/x86_64/Xenia-Edge.app"
+          arm_exec=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$arm_app/Contents/Info.plist")
+          x64_exec=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$x64_app/Contents/Info.plist")
 
           file "$binary"
           lipo -archs "$binary" | grep -q arm64
           lipo -archs "$binary" | grep -q x86_64
-
           file "$core"
           lipo -archs "$core" | grep -q arm64
           lipo -archs "$core" | grep -q x86_64
 
+          test -f "$app/Contents/Resources/BluBox.icns"
+          test -s "$app/Contents/Resources/BluBox.icns"
+          cmp app/src/main/res/drawable-nodpi/blubox_logo.png "$app/Contents/Resources/blubox_logo.png"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist" | grep -q '^BluBox.icns$'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^3.0.0$'
+          /usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist" | grep -q '^15.0$'
+
+          lipo -archs "$arm_app/Contents/MacOS/$arm_exec" | grep -q arm64
+          lipo -archs "$x64_app/Contents/MacOS/$x64_exec" | grep -q x86_64
+          codesign --verify --deep --strict --verbose=2 "$arm_app"
+          codesign --verify --deep --strict --verbose=2 "$x64_app"
           codesign --verify --deep --strict --verbose=2 "$app"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^2.3.0$'
+
           "$binary" --self-test | grep -q 'startup self-test passed'
           "$core" --self-test | grep -q 'native core bootstrap self-test passed'
           "$core" --capabilities | grep -q '"xbox360_execution":false'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
-      - name: Upload Mac 2.3 preview build
+      - name: Upload Mac 3.0 preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-2.3.0-preview-Universal
+          name: BluBox-360-Mac-3.0.0-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-2.3.0-preview-Universal.zip
-            macos/dist/BluBox-360-Mac-2.3.0-preview-Universal.dmg
+            macos/dist/BluBox-360-Mac-3.0.0-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-3.0.0-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
