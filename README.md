@@ -13,19 +13,25 @@ and its saves are not replaced.
 
 ## Download the public alpha
 
-[Download BluBox 360 0.14.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.14.0-alpha/BluBox-360-0.14.0-alpha-arm64.apk)
+[Download BluBox 360 0.15.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.15.0-alpha/BluBox-360-0.15.0-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required. Back up profiles and saves
-before updating. The current automated alpha build uses a temporary signing
-certificate when a private release key is not configured. If Android reports an
-install conflict, back up BluBox app data, uninstall the older alpha, install the
-new build, then restore the backup.
+before installing an alpha build. BluBox 360 0.15.0 is the first release signed
+with the permanent BluBox release certificate. Moving from 0.14.0 requires one
+final uninstall because 0.14.0 used a temporary certificate. From 0.15.0 onward,
+future releases signed with the same permanent certificate are designed to
+install as normal updates without removing BluBox data.
 
 APK SHA-256:
-`5dde9bbe4d4bf6abcae253f4fa990d99de9bbb2108f80f6fe781f3a05963a41c`
+`9e68ef1ef2244429064550ac75e7329b8768ae903feb709de29e407c50a7f6bf`
 
-## Included in 0.14.0 public alpha
+## Included in 0.15.0 public alpha
 
+- Built-in update checking against the official BluBox GitHub Releases feed
+- Update prompts with **Update now**, **What's new**, and **Later** choices
+- In-app APK download with progress and SHA-256 verification before installation
+- Android Package Installer handoff for the final update confirmation
+- Permanent BluBox release signing certificate for future in-place updates
 - Fixed and strengthened the BluBox startup chime
 - Startup sound continues when the boot animation is disabled
 - Profile-photo upload replaces the old skin, hair, outfit, expression, and background avatar creator
@@ -83,7 +89,7 @@ APK SHA-256:
 
 ## Install and use
 
-1. Install `BluBox-360-0.14.0-alpha-arm64.apk` on an ARM64 Android device.
+1. Install `BluBox-360-0.15.0-alpha-arm64.apk` on an ARM64 Android device.
 2. Allow installation from your browser or file manager if Android asks.
 3. Open BluBox 360 and grant All files access. Large disc images remain on your
    microSD card and are not copied into the app.
@@ -92,6 +98,18 @@ APK SHA-256:
 5. After placing another ISO, ZAR, or extracted `default.xex` in the selected
    folder, press **Refresh Library**.
 6. Tap a game or focus it with the controller and press A.
+
+## Built-in updates
+
+BluBox checks the official GitHub Releases feed after launch. When a newer alpha
+is available, choose **Update now** to download it inside BluBox, **What's new**
+to read the release notes, or **Later** to continue using the current version.
+BluBox verifies the downloaded APK against the release SHA-256 file when one is
+supplied, then Android's Package Installer handles the final installation step.
+
+Version 0.15.0 establishes the permanent BluBox signing certificate. Future
+releases must use the same certificate so Android accepts them as updates and
+preserves installed BluBox data.
 
 ## Profile photos
 
@@ -172,7 +190,7 @@ Performance mode, then try Balanced or HD. No games, Xbox firmware, encryption
 keys, or Microsoft code are included.
 
 Fable II title ID `4D5307F1` receives a conservative automatic preset at launch.
-Version 0.14.0 keeps the existing shader cache, compiles missing pipelines with
+Version 0.15.0 keeps the existing shader cache, compiles missing pipelines with
 two background workers, skips unfinished draws, and limits output to 24 FPS.
 BluBox memory patches and the title-specific Fable II 60 FPS and High Tick Rate
 patches remain off.
