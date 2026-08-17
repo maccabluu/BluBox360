@@ -105,18 +105,28 @@ public final class SocialActivity extends Activity {
         profileCopy.setOrientation(LinearLayout.VERTICAL);
         profileCopy.setPadding(dp(14), 0, 0, 0);
         profileCopy.addView(label(activeProfile.name, 20, Color.WHITE, true));
+        profileCopy.addView(label("Online name: " + activeProfile.name, 11, Color.WHITE, false));
         profileCopy.addView(label(tag, 13, getColor(R.color.cyan), true));
         profileCopy.addView(label(onlineEnabled ? presence : "Online services off",
                 11, onlineEnabled ? Color.rgb(96, 224, 142) : getColor(R.color.muted), false));
         profileRow.addView(profileCopy, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+        LinearLayout profileActions = new LinearLayout(this);
+        profileActions.setOrientation(LinearLayout.VERTICAL);
+        Button editName = button("Edit Name", true);
+        editName.setOnClickListener(v -> editOnlineName());
+        profileActions.addView(editName, new LinearLayout.LayoutParams(dp(142), dp(48)));
         Button copy = button("Copy BluTag", false);
         copy.setOnClickListener(v -> copyBluTag(tag));
-        profileRow.addView(copy, new LinearLayout.LayoutParams(dp(142), dp(50)));
+        LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(dp(142), dp(48));
+        copyParams.topMargin = dp(6);
+        profileActions.addView(copy, copyParams);
+        profileRow.addView(profileActions, new LinearLayout.LayoutParams(dp(142),
+                LinearLayout.LayoutParams.WRAP_CONTENT));
         profileCard.addView(profileRow);
 
-        TextView explain = label("Share your BluTag with another BluBox user. Friends added in this alpha are stored on this device while the internet service is being tested.",
+        TextView explain = label("Your BluBox profile name is now your online name. Editing it here also updates your profile name and your BluTag name automatically. The numbers at the end of your BluTag stay linked to this profile.",
                 11, getColor(R.color.muted), false);
         explain.setPadding(0, dp(10), 0, 0);
         profileCard.addView(explain);
@@ -128,7 +138,7 @@ public final class SocialActivity extends Activity {
                 17, Color.WHITE, true);
         serviceState.setPadding(0, dp(8), 0, dp(4));
         onlineCard.addView(serviceState);
-        onlineCard.addView(label("This first beta adds friends, BluTags and presence controls. Internet friend syncing and game invites need the BluBox online server before they go live.",
+        onlineCard.addView(label("This beta adds friends, BluTags, matching profile/online names and presence controls. Internet friend syncing and game invites still need the BluBox online server before they go live.",
                 11, getColor(R.color.muted), false));
 
         LinearLayout onlineButtons = new LinearLayout(this);
@@ -203,6 +213,33 @@ public final class SocialActivity extends Activity {
                 content.addView(friendRow(friend), matchWrap(dp(0), dp(8)));
             }
         }
+    }
+
+    private void editOnlineName() {
+        if (activeProfile == null) return;
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(activeProfile.name);
+        input.setSelection(input.getText().length());
+        input.setHint("BluBox name");
+        input.setSelectAllOnFocus(false);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Edit BluBox name")
+                .setMessage("This name is used for your local profile and your BluBox online name.")
+                .setView(input)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    ProfileStore.Profile updated = activeProfile.copy();
+                    updated.name = input.getText().toString();
+                    ProfileStore.SaveResult result = profileStore.save(updated);
+                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show();
+                    if (!result.success || result.profile == null) return;
+                    activeProfile = result.profile;
+                    CoreConfig.syncActiveProfileAsync(this, result.profile, null);
+                    render();
+                })
+                .show();
     }
 
     private View friendRow(SocialStore.Friend friend) {
