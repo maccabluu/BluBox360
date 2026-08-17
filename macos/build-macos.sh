@@ -7,7 +7,7 @@ app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-version=${BLUBOX_MAC_VERSION:-0.2.1-preview}
+version=${BLUBOX_MAC_VERSION:-2.2.0-preview}
 arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx13.0}
 intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx13.0}
 
@@ -52,9 +52,9 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>${version%-preview}</string>
+    <string>2.2.0</string>
     <key>CFBundleVersion</key>
-    <string>3</string>
+    <string>22</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
@@ -85,7 +85,7 @@ ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
-  -volname "BluBox 360" \
+  -volname "BluBox 360 2.2" \
   -srcfolder "$staging" \
   -ov \
   -format UDZO \
@@ -94,6 +94,6 @@ hdiutil create \
 rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS universal preview:"
+echo "Built BluBox 360 macOS 2.2 universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
