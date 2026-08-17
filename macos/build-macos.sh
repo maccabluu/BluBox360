@@ -2,14 +2,17 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")" && pwd)
+repo_root=$(cd "$root/.." && pwd)
 dist="$root/dist"
 app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-version=${BLUBOX_MAC_VERSION:-2.3.0-preview}
-arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx13.0}
-intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx13.0}
+version=${BLUBOX_MAC_VERSION:-3.0.0-preview}
+arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx15.0}
+intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx15.0}
+xenia_arm_app=${BLUBOX_XENIA_ARM_APP:-}
+xenia_x64_app=${BLUBOX_XENIA_X64_APP:-}
 
 rm -rf "$dist"
 mkdir -p "$macos" "$resources"
@@ -28,21 +31,75 @@ build_binary() {
 
 arm_binary=$(build_binary "$arm_triple")
 intel_binary=$(build_binary "$intel_triple")
-
 lipo -create "$arm_binary" "$intel_binary" -output "$macos/BluBox360"
 chmod +x "$macos/BluBox360"
 
+# Keep the small diagnostic/JIT bootstrap beside the real experimental engine.
 core_arm="$dist/blubox360-core-arm64"
 core_intel="$dist/blubox360-core-x86_64"
 core_universal="$resources/blubox360-core"
-
-clang -O2 -arch arm64 -mmacosx-version-min=13.0 \
+clang -O2 -arch arm64 -mmacosx-version-min=15.0 \
   "$root/NativeCore/blubox360_core.c" -o "$core_arm"
-clang -O2 -arch x86_64 -mmacosx-version-min=13.0 \
+clang -O2 -arch x86_64 -mmacosx-version-min=15.0 \
   "$root/NativeCore/blubox360_core.c" -o "$core_intel"
 lipo -create "$core_arm" "$core_intel" -output "$core_universal"
 chmod +x "$core_universal"
 rm -f "$core_arm" "$core_intel"
+codesign --force --sign - "$core_universal"
+
+# Use the same BluBox artwork as the Android application.
+android_icon="$repo_root/app/src/main/res/drawable-nodpi/blubox_launcher_icon.png"
+android_logo="$repo_root/app/src/main/res/drawable-nodpi/blubox_logo.png"
+if [[ ! -f "$android_icon" || ! -f "$android_logo" ]]; then
+  echo "BluBox Android logo assets were not found." >&2
+  exit 1
+fi
+cp "$android_logo" "$resources/blubox_logo.png"
+
+iconset="$dist/BluBox.iconset"
+mkdir -p "$iconset"
+make_icon() {
+  local pixels="$1"
+  local output="$2"
+  sips -s format png -z "$pixels" "$pixels" "$android_icon" --out "$iconset/$output" >/dev/null
+}
+make_icon 16 icon_16x16.png
+make_icon 32 icon_16x16@2x.png
+make_icon 32 icon_32x32.png
+make_icon 64 icon_32x32@2x.png
+make_icon 128 icon_128x128.png
+make_icon 256 icon_128x128@2x.png
+make_icon 256 icon_256x256.png
+make_icon 512 icon_256x256@2x.png
+make_icon 512 icon_512x512.png
+make_icon 1024 icon_512x512@2x.png
+iconutil -c icns "$iconset" -o "$resources/BluBox.icns"
+rm -rf "$iconset"
+
+# Carry over the bundled Fable II performance patch and open-source notices.
+mkdir -p "$resources/Patches" "$resources/Licenses"
+patch_source="$repo_root/app/src/main/assets/patches/4D5307F1 - Fable II (BluBox Performance).patch.toml"
+if [[ -f "$patch_source" ]]; then
+  cp "$patch_source" "$resources/Patches/"
+fi
+if [[ -f "$repo_root/licenses/XENIA-BSD-3-Clause.txt" ]]; then
+  cp "$repo_root/licenses/XENIA-BSD-3-Clause.txt" "$resources/Licenses/XENIA-BSD-3-Clause.txt"
+fi
+if [[ -f "$root/XENIA_MAC_NOTICE.md" ]]; then
+  cp "$root/XENIA_MAC_NOTICE.md" "$resources/Licenses/XENIA_MAC_NOTICE.md"
+fi
+
+# Bundle both Xenia-Edge macOS architectures when supplied by CI.
+# These remain separate because the upstream macOS project currently has different
+# compatibility characteristics between native arm64 and x86_64/Rosetta builds.
+if [[ -n "$xenia_arm_app" && -d "$xenia_arm_app" ]]; then
+  mkdir -p "$resources/Engines/arm64"
+  ditto "$xenia_arm_app" "$resources/Engines/arm64/Xenia-Edge.app"
+fi
+if [[ -n "$xenia_x64_app" && -d "$xenia_x64_app" ]]; then
+  mkdir -p "$resources/Engines/x86_64"
+  ditto "$xenia_x64_app" "$resources/Engines/x86_64/Xenia-Edge.app"
+fi
 
 cat > "$contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -64,11 +121,13 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.3.0</string>
+    <string>3.0.0</string>
     <key>CFBundleVersion</key>
-    <string>23</string>
+    <string>30</string>
+    <key>CFBundleIconFile</key>
+    <string>BluBox.icns</string>
     <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
+    <string>15.0</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.games</string>
     <key>NSPrincipalClass</key>
@@ -84,8 +143,9 @@ cat > "$contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign - "$core_universal"
-codesign --force --deep --sign - "$app"
+# Preserve the signatures/entitlements of the bundled experimental engines.
+# The BluBox shell and diagnostic helper use ad-hoc signatures for private preview testing.
+codesign --force --sign - "$app"
 
 zip_path="$dist/BluBox-360-Mac-${version}-Universal.zip"
 dmg_path="$dist/BluBox-360-Mac-${version}-Universal.dmg"
@@ -93,12 +153,12 @@ staging="$dist/dmg-root"
 
 rm -rf "$staging"
 mkdir -p "$staging"
-cp -R "$app" "$staging/BluBox 360.app"
+ditto "$app" "$staging/BluBox 360.app"
 ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
-  -volname "BluBox 360 2.3" \
+  -volname "BluBox 360 3.0" \
   -srcfolder "$staging" \
   -ov \
   -format UDZO \
@@ -107,7 +167,8 @@ hdiutil create \
 rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS 2.3 universal preview:"
+echo "Built BluBox 360 macOS 3.0 universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
-echo "  bundled core: $core_universal"
+echo "  diagnostic core: $core_universal"
+find "$resources/Engines" -maxdepth 3 -name '*.app' -print 2>/dev/null || true
