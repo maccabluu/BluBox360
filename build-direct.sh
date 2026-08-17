@@ -41,8 +41,8 @@ cp -a "$project_root/emulator-core/src/main/jniLibs/arm64-v8a/." \
   -I "$android_jar" \
   --min-sdk-version 29 \
   --target-sdk-version 35 \
-  --version-code 21 \
-  --version-name 0.12.0-alpha \
+  --version-code 22 \
+  --version-name 0.13.0-alpha \
   --replace-version \
   --java "$work_dir/gen" \
   --extra-packages xendroid.compose.core \
@@ -75,7 +75,7 @@ if [[ -n "${BLUBOX_KEYSTORE:-}" ]]; then
   : "${BLUBOX_KEYSTORE_PASS:?Set BLUBOX_KEYSTORE_PASS when signing}"
   : "${BLUBOX_KEY_PASS:?Set BLUBOX_KEY_PASS when signing}"
   export BLUBOX_KEYSTORE_PASS BLUBOX_KEY_PASS
-  output_apk="$output_dir/BluBox-360-0.12.0-alpha-arm64.apk"
+  output_apk="$output_dir/BluBox-360-0.13.0-alpha-arm64.apk"
   "$tools_dir/apksigner" sign \
     --ks "$BLUBOX_KEYSTORE" \
     --ks-key-alias "${BLUBOX_KEY_ALIAS:-androiddebugkey}" \
@@ -88,7 +88,7 @@ if [[ -n "${BLUBOX_KEYSTORE:-}" ]]; then
     --out "$output_apk" "$work_dir/aligned.apk"
   "$tools_dir/apksigner" verify --verbose "$output_apk"
 else
-  output_apk="$output_dir/BluBox-360-0.12.0-alpha-arm64-unsigned.apk"
+  output_apk="$output_dir/BluBox-360-0.13.0-alpha-arm64-unsigned.apk"
   cp "$work_dir/aligned.apk" "$output_apk"
 fi
 
