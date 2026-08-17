@@ -8,7 +8,7 @@ contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
 triple=${BLUBOX_MAC_TRIPLE:-arm64-apple-macosx13.0}
-version=${BLUBOX_MAC_VERSION:-0.1.0-preview}
+version=${BLUBOX_MAC_VERSION:-0.2.0-preview}
 
 rm -rf "$dist"
 mkdir -p "$macos" "$resources"
@@ -46,7 +46,7 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key>
     <string>${version%-preview}</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
