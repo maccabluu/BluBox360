@@ -8,8 +8,8 @@ if [[ -z "$sdk_root" ]]; then
   exit 1
 fi
 
-version_code=27
-version_name=0.16.0-alpha
+version_code=28
+version_name=0.16.1-alpha
 version_label=${version_name%-alpha}
 
 build_tools_version=${ANDROID_BUILD_TOOLS_VERSION:-36.0.0}
