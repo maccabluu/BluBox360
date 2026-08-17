@@ -31,10 +31,10 @@ jobs:
           file macos/CoreProbe/build/blubox-jit-probe
           macos/CoreProbe/build/blubox-jit-probe
 
-      - name: Build universal Mac preview
+      - name: Build universal Mac 2.2 preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_VERSION=0.2.1-preview ./macos/build-macos.sh
+          BLUBOX_MAC_VERSION=2.2.0-preview ./macos/build-macos.sh
 
       - name: Verify app and startup
         run: |
@@ -45,15 +45,16 @@ jobs:
           lipo -archs "$binary" | grep -q arm64
           lipo -archs "$binary" | grep -q x86_64
           codesign --verify --deep --strict --verbose=2 "$app"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^2.2.0$'
           "$binary" --self-test | grep -q 'startup self-test passed'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
-      - name: Upload Mac preview build
+      - name: Upload Mac 2.2 preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-0.2.1-preview-Universal
+          name: BluBox-360-Mac-2.2.0-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-0.2.1-preview-Universal.zip
-            macos/dist/BluBox-360-Mac-0.2.1-preview-Universal.dmg
+            macos/dist/BluBox-360-Mac-2.2.0-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-2.2.0-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
