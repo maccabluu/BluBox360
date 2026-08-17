@@ -163,10 +163,9 @@ public class BootActivity extends Activity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
-        if (startupSound != null) {
-            startupSound.stop();
-            startupSound = null;
-        }
+        // The startup player releases itself when the chime finishes. Do not stop it here,
+        // because BootActivity closes immediately when the boot animation is disabled.
+        startupSound = null;
         super.onDestroy();
     }
 }
