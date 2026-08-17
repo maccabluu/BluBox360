@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
 
       - name: Prepare alpha signing key
         id: signing
