@@ -59,7 +59,7 @@ struct GameEntry: Identifiable, Codable, Hashable {
 final class GameLibrary: ObservableObject {
     @Published private(set) var games: [GameEntry] = []
     @Published var selectedGame: GameEntry?
-    @Published private(set) var statusText = "BluBox 360 macOS 2.2 ready"
+    @Published var statusText = "BluBox 360 macOS 2.2 ready"
 
     private let libraryKey = "BluBoxMacGameLibraryV2"
     private let legacyKey = "BluBoxMacGamePaths"
