@@ -129,7 +129,13 @@ wrap_xenia_engine() {
   # keeps its own upstream code signature and JIT entitlements.
   codesign --force --sign - "$engine_app"
 
-  "$exec_path" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
+  lipo -archs "$exec_path" | grep -q "$arch"
+  lipo -archs "$real_path" | grep -q "$arch"
+  if [[ "$(uname -m)" == "$arch" ]]; then
+    "$exec_path" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
+  elif [[ "$arch" == "x86_64" ]] && /usr/bin/arch -x86_64 /usr/bin/true >/dev/null 2>&1; then
+    /usr/bin/arch -x86_64 "$exec_path" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
+  fi
 }
 
 wrap_xenia_engine "$resources/Engines/arm64/Xenia-Edge.app" arm64
