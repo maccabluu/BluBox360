@@ -5,6 +5,7 @@ private enum SidebarPage: String, CaseIterable, Identifiable {
     case library = "Library"
     case recent = "Recently Played"
     case favorites = "Favorites"
+    case profile = "Profile"
     case settings = "Settings"
     case diagnostics = "Diagnostics"
 
@@ -15,6 +16,7 @@ private enum SidebarPage: String, CaseIterable, Identifiable {
         case .library: return "square.grid.2x2"
         case .recent: return "clock"
         case .favorites: return "star.fill"
+        case .profile: return "person.crop.circle"
         case .settings: return "gearshape"
         case .diagnostics: return "waveform.path.ecg"
         }
@@ -43,10 +45,15 @@ struct ContentView: View {
     @State private var page: SidebarPage? = .library
     @State private var coreAlertText = ""
     @State private var showingCoreAlert = false
+    @State private var searchText = ""
+    @State private var sortMode = "Name"
 
     @AppStorage("BluBoxMacTargetFPS") private var targetFPS = 60
     @AppStorage("BluBoxMacGraphicsPreset") private var graphicsPreset = "Balanced"
+    @AppStorage("BluBoxMacRenderScale") private var renderScale = "Native"
     @AppStorage("BluBoxMacShowFPS") private var showFPS = true
+    @AppStorage("BluBoxMacSmartHeatGuard") private var smartHeatGuard = true
+    @AppStorage("BluBoxMacProfileName") private var profileName = "Player 1"
 
     private let columns = [
         GridItem(.adaptive(minimum: 190, maximum: 235), spacing: 16)
@@ -77,6 +84,7 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(.dark)
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search games")
         .alert("BluBox 360 macOS", isPresented: $showingCoreAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -94,7 +102,7 @@ struct ContentView: View {
             }
         }
         .navigationTitle("BluBox 360")
-        .frame(minWidth: 190)
+        .frame(minWidth: 205)
     }
 
     private var header: some View {
@@ -110,7 +118,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("BluBox 360")
                     .font(.system(size: 25, weight: .bold, design: .rounded))
-                Text("macOS 0.2 Preview • Apple Silicon")
+                Text("macOS 2.2 Preview • Universal")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.cyan)
             }
@@ -118,14 +126,19 @@ struct ContentView: View {
             Spacer()
 
             if core.isRunning {
-                Button("Stop Game") { core.stop() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(core.currentGameName ?? "Game running")
+                        .font(.caption.bold())
+                    Button("Stop Game") { core.stop() }
+                        .buttonStyle(.bordered)
+                }
             }
 
-            Menu("Add Games") {
+            Menu("Library") {
                 Button("Add Game Files…") { library.addGames() }
                 Button("Scan Game Folder…") { library.addFolder() }
+                Divider()
+                Button("Refresh Library") { library.refreshLibrary() }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -143,6 +156,8 @@ struct ContentView: View {
             gameCollection(title: "Recently Played", games: library.recentGames)
         case .favorites:
             gameCollection(title: "Favorites", games: library.favoriteGames)
+        case .profile:
+            profilePage
         case .settings:
             settingsPage
         case .diagnostics:
@@ -150,13 +165,51 @@ struct ContentView: View {
         }
     }
 
+    private func visibleGames(_ games: [GameEntry]) -> [GameEntry] {
+        let filtered: [GameEntry]
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            filtered = games
+        } else {
+            filtered = games.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.fileType.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
+        switch sortMode {
+        case "Recently Played":
+            return filtered.sorted { ($0.lastPlayed ?? .distantPast) > ($1.lastPlayed ?? .distantPast) }
+        case "Favorites First":
+            return filtered.sorted {
+                if $0.isFavorite != $1.isFavorite { return $0.isFavorite && !$1.isFavorite }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        default:
+            return filtered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+    }
+
     private func gameCollection(title: String, games: [GameEntry]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let displayGames = visibleGames(games)
+        return VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(title)
-                    .font(.title2.bold())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.title2.bold())
+                    Text("ISO, ZAR and XEX library")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
-                Text("\(games.count) game\(games.count == 1 ? "" : "s")")
+
+                Picker("Sort", selection: $sortMode) {
+                    Text("Name").tag("Name")
+                    Text("Recently Played").tag("Recently Played")
+                    Text("Favorites First").tag("Favorites First")
+                }
+                .frame(width: 170)
+
+                Text("\(displayGames.count) game\(displayGames.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -164,12 +217,12 @@ struct ContentView: View {
             .padding(.top, 18)
             .padding(.bottom, 10)
 
-            if games.isEmpty {
+            if displayGames.isEmpty {
                 emptyLibrary(title: title)
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
-                        ForEach(games) { game in
+                        ForEach(displayGames) { game in
                             gameCard(game)
                         }
                     }
@@ -185,17 +238,19 @@ struct ContentView: View {
             Image(systemName: title == "Favorites" ? "star" : "rectangle.stack.badge.plus")
                 .font(.system(size: 54, weight: .light))
                 .foregroundStyle(.cyan)
-            Text(title == "Favorites" ? "No favorites yet" : "Nothing here yet")
+            Text(searchText.isEmpty
+                 ? (title == "Favorites" ? "No favorites yet" : "Nothing here yet")
+                 : "No games match your search")
                 .font(.title2.bold())
             Text(title == "Recently Played"
-                 ? "Games will appear here after the native core begins launching them."
+                 ? "Games appear here after the native core launches them."
                  : title == "Favorites"
                  ? "Mark games as favorites from the menu on a game card."
                  : "Add your own Xbox 360 ISO, ZAR or XEX files to build your Mac library.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 560)
-            if title == "Game Library" {
+            if title == "Game Library" && searchText.isEmpty {
                 HStack {
                     Button("Add Game Files") { library.addGames() }
                     Button("Scan Folder") { library.addFolder() }
@@ -220,9 +275,13 @@ struct ContentView: View {
                         Text(game.name)
                             .font(.headline)
                             .lineLimit(2)
-                        Text(game.fileType)
+                        Text("\(game.fileType) • \(game.fileSizeText)")
                             .font(.caption.bold())
                             .foregroundStyle(.cyan)
+                        Text(game.folderText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Spacer()
                     if game.isFavorite {
@@ -244,7 +303,9 @@ struct ContentView: View {
                         if game.coverURL != nil {
                             Button("Reset Cover") { library.resetCover(for: game) }
                         }
-                        Button("Show in Finder") { library.reveal(game) }
+                        Divider()
+                        Button("Open Save Folder") { core.openSaveFolder(for: game) }
+                        Button("Show Game in Finder") { library.reveal(game) }
                         Divider()
                         Button("Remove from Library", role: .destructive) { library.remove(game) }
                     } label: {
@@ -289,20 +350,86 @@ struct ContentView: View {
     private func play(_ game: GameEntry) {
         core.refresh()
         guard core.isReady else {
-            coreAlertText = "The native Mac app is ready, but the Xbox 360 emulation core is not bundled yet. BluBox now has a real core bridge ready for the macOS port. The next core milestone is PowerPC/JIT and Vulkan-to-Metal work."
+            coreAlertText = "BluBox macOS 2.2 is ready for testing, but the Xbox 360 emulation core is not bundled yet. The library, profiles, saves, graphics settings, heat guard, controller diagnostics and core bridge are built in. The remaining emulator milestone is the native PowerPC/Xenia-derived core and Mac graphics backend."
             showingCoreAlert = true
             return
+        }
+
+        var launchFPS = targetFPS
+        var launchPreset = graphicsPreset
+        var launchScale = renderScale
+
+        if smartHeatGuard && MacDiagnostics.shouldUseHeatSafePreset {
+            launchFPS = 30
+            launchPreset = "Performance"
+            launchScale = "Native"
+            library.statusText = "Smart Heat Guard selected the cool 30 FPS preset for this launch."
         }
 
         library.markPlayed(game)
         core.launch(
             game: game,
             settings: MacLaunchSettings(
-                targetFPS: targetFPS,
-                graphicsPreset: graphicsPreset,
-                showFPS: showFPS
+                targetFPS: launchFPS,
+                graphicsPreset: launchPreset,
+                renderScale: launchScale,
+                showFPS: showFPS,
+                smartHeatGuard: smartHeatGuard,
+                profileName: profileName
             )
         )
+    }
+
+    private var profilePage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Profile")
+                    .font(.title2.bold())
+
+                BluCard {
+                    HStack(spacing: 18) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.8))
+                            Text(String(profileName.prefix(1)).uppercased())
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                        }
+                        .frame(width: 78, height: 78)
+
+                        VStack(alignment: .leading, spacing: 7) {
+                            TextField("Profile name", text: $profileName)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(maxWidth: 320)
+                            Text("Local BluBox profile")
+                                .font(.caption)
+                                .foregroundStyle(.cyan)
+                            Text("Profile data stays on this Mac. Xbox Live sign-in is not used by this preview.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+
+                BluCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("ACHIEVEMENTS & GAMERSCORE")
+                            .font(.caption.bold())
+                            .foregroundStyle(.cyan)
+                        Text("Ready for native core events")
+                            .font(.headline)
+                        Text("BluBox 2.2 keeps the local profile structure ready for achievements and gamerscore. They will populate when the macOS emulator core reports game achievement events.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button("Open Profile Data Folder") {
+                    MacDataPaths.open(MacDataPaths.profiles())
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(22)
+        }
     }
 
     private var settingsPage: some View {
@@ -318,6 +445,7 @@ struct ContentView: View {
                             .foregroundStyle(.cyan)
                         Text("Mac launch profile")
                             .font(.headline)
+
                         Picker("Graphics", selection: $graphicsPreset) {
                             Text("Performance").tag("Performance")
                             Text("Balanced").tag("Balanced")
@@ -331,9 +459,29 @@ struct ContentView: View {
                         }
                         .pickerStyle(.segmented)
 
+                        Picker("Render scale", selection: $renderScale) {
+                            Text("Native").tag("Native")
+                            Text("HD+").tag("HD+")
+                        }
+                        .pickerStyle(.segmented)
+
                         Toggle("Show FPS when supported", isOn: $showFPS)
-                        Text("These settings are passed to the native core bridge when the macOS emulator backend is connected.")
+                        Toggle("Smart Heat Guard", isOn: $smartHeatGuard)
+
+                        Text("Smart Heat Guard switches a launch to Performance, Native scale and 30 FPS when macOS reports serious thermal pressure or Low Power Mode.")
                             .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                BluCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("CONTROLLERS")
+                            .font(.caption.bold())
+                            .foregroundStyle(.cyan)
+                        Text(MacDiagnostics.controllerSummary)
+                            .font(.headline)
+                        Text(MacDiagnostics.controllerNames)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -350,6 +498,23 @@ struct ContentView: View {
                         HStack {
                             Button("Refresh Core Status") { core.refresh() }
                             Button("Open Core Folder") { core.openCoreFolder() }
+                            Button("Open Saves") { core.openSavesFolder() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                BluCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("STORAGE")
+                            .font(.caption.bold())
+                            .foregroundStyle(.cyan)
+                        Text("BluBox application data")
+                            .font(.headline)
+                        HStack {
+                            Button("Data Folder") { core.openDataFolder() }
+                            Button("Shader Cache") { core.openShaderCacheFolder() }
+                            Button("Logs") { core.openLogsFolder() }
                         }
                         .buttonStyle(.bordered)
                     }
@@ -360,9 +525,9 @@ struct ContentView: View {
                         Text("MAC PREVIEW")
                             .font(.caption.bold())
                             .foregroundStyle(.cyan)
-                        Text("BluBox 360 macOS 0.2 Preview")
+                        Text("BluBox 360 macOS 2.2 Preview")
                             .font(.headline)
-                        Text("Native SwiftUI frontend for Apple Silicon. Android remains a separate release and is not changed by this branch.")
+                        Text("Universal frontend for Apple Silicon and Intel Macs. Android stays on its separate release track.")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -383,19 +548,26 @@ struct ContentView: View {
 
                 BluCard {
                     diagnosticRow("Architecture", MacDiagnostics.architecture)
+                    diagnosticRow("macOS", MacDiagnostics.macOSVersion)
                     diagnosticRow("Metal GPU", MacDiagnostics.metalDevice)
                     diagnosticRow("Memory", MacDiagnostics.memory)
                     diagnosticRow("Controllers", MacDiagnostics.controllerSummary)
                     diagnosticRow("Thermal state", MacDiagnostics.thermalState)
                     diagnosticRow("Low Power Mode", MacDiagnostics.lowPowerMode)
+                    diagnosticRow("Smart Heat Guard", smartHeatGuard ? "On" : "Off")
                     diagnosticRow("Emulator core", core.coreURL == nil ? "Not connected" : "Detected")
                 }
 
                 BluCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("CORE LOG")
-                            .font(.caption.bold())
-                            .foregroundStyle(.cyan)
+                        HStack {
+                            Text("CORE LOG")
+                                .font(.caption.bold())
+                                .foregroundStyle(.cyan)
+                            Spacer()
+                            Button("Clear") { core.clearConsole() }
+                                .buttonStyle(.borderless)
+                        }
                         ScrollView {
                             Text(core.consoleText.isEmpty
                                  ? "No native core session has run yet."
@@ -433,6 +605,11 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            Text("Profile: \(profileName)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("•")
+                .foregroundStyle(.secondary)
             Text(core.coreURL == nil ? "Core port: pending" : "Core: connected")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
