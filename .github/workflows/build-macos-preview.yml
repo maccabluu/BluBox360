@@ -13,6 +13,9 @@ on:
       - '.github/workflows/build-macos-preview.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-macos-preview:
     runs-on: macos-15
@@ -84,15 +87,15 @@ jobs:
             macos/CoreProbe/build/blubox-jit-probe
           fi
 
-      - name: Build universal Mac 3.0.1 preview
+      - name: Build universal Mac 3.0.2 preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_VERSION=3.0.1-preview \
+          BLUBOX_MAC_VERSION=3.0.2-preview \
           BLUBOX_XENIA_ARM_APP="$PWD/macos/ExternalEngines/arm64/Xenia-Edge.app" \
           BLUBOX_XENIA_X64_APP="$PWD/macos/ExternalEngines/x86_64/Xenia-Edge.app" \
           ./macos/build-macos.sh
 
-      - name: Verify app startup branding and launch sanitizer
+      - name: Verify app startup branding updater and launch sanitizer
         run: |
           set -euo pipefail
           app='macos/dist/BluBox 360.app'
@@ -114,8 +117,13 @@ jobs:
           test -s "$app/Contents/Resources/BluBox.icns"
           cmp app/src/main/res/drawable-nodpi/blubox_logo.png "$app/Contents/Resources/blubox_logo.png"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist" | grep -q '^BluBox.icns$'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^3.0.1$'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" | grep -q '^3.0.2$'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist" | grep -q '^32$'
           /usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist" | grep -q '^15.0$'
+
+          strings "$binary" | grep -q 'Software Update'
+          strings "$binary" | grep -q 'api.github.com/repos/maccabluu/BluBox360/releases'
+          strings "$binary" | grep -q 'SHA256SUMS.txt'
 
           lipo -archs "$arm_app/Contents/MacOS/$arm_exec" | grep -q arm64
           lipo -archs "$x64_app/Contents/MacOS/$x64_exec" | grep -q x86_64
@@ -131,12 +139,48 @@ jobs:
           "$core" --capabilities | grep -q '"xbox360_execution":false'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
-      - name: Upload Mac 3.0.1 preview build
+      - name: Upload Mac 3.0.2 preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-3.0.1-preview-Universal
+          name: BluBox-360-Mac-3.0.2-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-3.0.1-preview-Universal.zip
-            macos/dist/BluBox-360-Mac-3.0.1-preview-Universal.dmg
+            macos/dist/BluBox-360-Mac-3.0.2-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-3.0.2-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
+
+      - name: Publish Mac 3.0.2 updater prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag='mac-v3.0.2-preview'
+          notes_file="$RUNNER_TEMP/mac-release-notes.md"
+          cat > "$notes_file" <<'NOTES'
+          ## BluBox 360 macOS 3.0.2 Preview
+
+          This Mac preview fixes the update experience and keeps the 3.0.1 Xenia launch hotfix.
+
+          - Adds **BluBox 360 > Software Update…** inside the app.
+          - Shows your installed version, the latest available Mac version, status, and release notes.
+          - Checks for a newer Mac preview automatically after launch.
+          - Adds **Update Now** for future Mac updates.
+          - Downloads the Mac ZIP from GitHub Releases and verifies it against `SHA256SUMS.txt` before installing.
+          - Replaces the existing app in place when macOS permits it, so the older version does not need to be uninstalled first.
+          - If macOS requires extra permission, BluBox opens the DMG so you can drag the new app over the old one and choose **Replace** instead of uninstalling.
+
+          **Preview warning:** this remains experimental macOS emulator software. CI verifies the app, bundled engines, launch sanitizer, signatures, update payload checksums, and startup self-tests. It does not prove that every Xbox 360 game boots or runs correctly.
+          NOTES
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --cleanup-tag -y
+          fi
+
+          gh release create "$tag" \
+            macos/dist/BluBox-360-Mac-3.0.2-preview-Universal.zip \
+            macos/dist/BluBox-360-Mac-3.0.2-preview-Universal.dmg \
+            macos/dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title 'BluBox 360 macOS 3.0.2 Preview' \
+            --notes-file "$notes_file" \
+            --prerelease
