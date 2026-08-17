@@ -10,40 +10,43 @@ and Adreno devices, with the AYN Thor Pro as the main development target.
 
 ## Latest release
 
-### BluBox 360 0.16.0 public alpha
+### BluBox 360 0.16.1 public alpha
 
-[Download BluBox 360 0.16.0-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.16.0-alpha/BluBox-360-0.16.0-alpha-arm64.apk)
+[Download BluBox 360 0.16.1-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.16.1-alpha/BluBox-360-0.16.1-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required.
 
 APK SHA-256:
-`7301535aa27ea335d1e96e7c6ef34405f741432f79fa5f89d7cc05bef36e2213`
+`2faf065ee63f3064f44f67e7f8d6dad8873ef4dd82a146efa223f7b0469c481c`
 
-[View the v0.16.0-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.16.0-alpha)
+[View the v0.16.1-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.16.1-alpha)
 
-## What changed in 0.16.0
+## What changed in 0.16.1
 
-- Added **HD+** graphics mode for clearer original Xbox 360 rendering.
-- HD+ uses 2x internal resolution, FSR scaling and sharpening, FXAA Extreme, and 16x anisotropic texture filtering.
-- HD+ uses stronger sharpening than the normal HD preset.
-- Selecting HD+ turns Low Heat Mode off so the higher-resolution settings stay active.
-- Added **Find retail cover online** to each game's options.
-- The retail-cover button opens the Xbox 360 section of The Cover Project.
-- Downloaded covers can be imported with **Choose cover from device**.
-- Full wraparound retail scans are detected and BluBox automatically crops the front panel for the 3D Xbox 360 case.
-- Imported cover artwork now supports up to a 2048px edge and higher JPEG quality.
-- Keeps the permanent BluBox signing certificate and built-in update system.
+- Fixed the updater treating the old `BluBox360-0.12.0` tag as if it were version `360.0.0`.
+- Old non-standard release tags are now ignored by the in-app updater.
+- The updater accepts the current `v0.16.1-alpha` style release tags only.
+- Version comparison now reads the actual major, minor, and patch numbers.
+- The update dialog now shows a clean version such as `0.16.1 public alpha`.
+- Update validity is checked before the popup appears and again before a download starts.
+- HD+ graphics and the retail-cover workflow from 0.16.0 remain included.
+- Uses the same permanent BluBox signing certificate as the other permanent-signed releases.
 
-HD+ improves the appearance of the original game textures and rendering. BluBox
-does not bundle replacement texture packs and does not modify game files.
+When 0.16.1 is installed and 0.16.1 is the newest published release, the update
+popup should stay hidden. Future canonical releases such as `v0.16.2-alpha` or
+`v0.17.0-alpha` should trigger it normally.
 
-The Cover Project is an independent external website. BluBox does not bundle or
-redistribute its cover scans. Users choose and download artwork themselves.
+## Important one-time update note for 0.16.0 users
+
+The updater bug is inside 0.16.0 itself, so 0.16.0 may keep offering the old
+0.12 release instead of this hotfix. Install 0.16.1 manually once using the
+latest download link above. Android should install it directly over 0.16.0
+because both APKs use the same permanent BluBox certificate.
 
 ## Built-in updates
 
-BluBox checks the official GitHub Releases feed after launch. When a newer alpha
-is available, the app offers:
+BluBox checks the official GitHub Releases feed after launch. When a genuinely
+newer canonical alpha is available, the app offers:
 
 - **Update now** to download the APK inside BluBox.
 - **What's new** to read the release notes.
@@ -54,16 +57,16 @@ supplied. Android's Package Installer then handles the final installation
 confirmation.
 
 Version 0.15.0 established the permanent BluBox release certificate. Versions
-0.15.1, 0.15.2, and 0.16.0 use the same certificate. Future releases must keep
-using this certificate so Android accepts them as normal updates and keeps
-installed BluBox data.
+0.15.1, 0.15.2, 0.16.0, and 0.16.1 use the same certificate. Future releases
+must keep using this certificate so Android accepts them as normal updates and
+keeps installed BluBox data.
 
 ## Install or update
 
-1. Download `BluBox-360-0.16.0-alpha-arm64.apk`.
-2. If you already have 0.15.0, 0.15.1, or 0.15.2 installed, install 0.16.0 directly over it.
+1. Download `BluBox-360-0.16.1-alpha-arm64.apk`.
+2. If you already have 0.15.0 or newer permanent-signed BluBox installed, install 0.16.1 directly over it.
 3. Android should treat it as an update because the permanent signing certificate matches.
-4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.16.0 public alpha`.
+4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.16.1 public alpha`.
 5. Keep your profiles and saves backed up while testing alpha builds.
 
 Moving directly from 0.14.0 still requires the one final uninstall because
@@ -71,7 +74,7 @@ Moving directly from 0.14.0 still requires the one final uninstall because
 
 ## HD+ graphics
 
-Open **Settings > Performance** and choose **HD+** for the new enhanced graphics
+Open **Settings > Performance** and choose **HD+** for the enhanced graphics
 preset. HD+ uses 2x internal rendering, FSR sharpening, FXAA Extreme, and 16x
 anisotropic filtering to make surfaces, signs, clothing, roads, scenery, and
 other original game textures look cleaner where the game and GPU allow it.
@@ -80,7 +83,7 @@ HD+ uses more GPU power than Performance or Balanced mode and automatically
 turns Low Heat Mode off. If a game runs too hot or loses too much performance,
 switch back to Balanced, HD, or Performance.
 
-Fable II keeps its existing safety/recovery settings where required.
+Fable II keeps its existing safety and recovery settings where required.
 
 ## Retail-style game covers
 
