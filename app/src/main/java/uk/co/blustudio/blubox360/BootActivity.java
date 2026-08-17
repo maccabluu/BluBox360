@@ -23,12 +23,19 @@ import android.widget.TextView;
 public class BootActivity extends Activity {
     private static final long BOOT_DURATION_MS = 1900L;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private StartupSound startupSound;
     private boolean opened;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         enterImmersive();
+
+        if (state == null && AppPreferences.startupSound(this)) {
+            startupSound = new StartupSound(this);
+            startupSound.play();
+        }
+
         if (!AppPreferences.bootAnimation(this)) {
             openLibrary();
             return;
@@ -156,6 +163,10 @@ public class BootActivity extends Activity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        if (startupSound != null) {
+            startupSound.stop();
+            startupSound = null;
+        }
         super.onDestroy();
     }
 }

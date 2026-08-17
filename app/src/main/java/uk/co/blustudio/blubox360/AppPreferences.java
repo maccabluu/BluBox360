@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 final class AppPreferences {
     static final String PREFS = "blubox360_app_settings";
     private static final String KEY_BOOT_ANIMATION = "boot_animation";
+    private static final String KEY_STARTUP_SOUND = "startup_sound";
     private static final String KEY_SECOND_SCREEN_ACHIEVEMENTS = "second_screen_achievements";
     private static final String KEY_SHOW_LOCKED_ACHIEVEMENTS = "show_locked_achievements";
     private static final String KEY_SMOOTH_CONTROLS = "smooth_controls";
@@ -19,6 +20,14 @@ final class AppPreferences {
 
     static void setBootAnimation(Context context, boolean enabled) {
         preferences(context).edit().putBoolean(KEY_BOOT_ANIMATION, enabled).apply();
+    }
+
+    static boolean startupSound(Context context) {
+        return preferences(context).getBoolean(KEY_STARTUP_SOUND, true);
+    }
+
+    static void setStartupSound(Context context, boolean enabled) {
+        preferences(context).edit().putBoolean(KEY_STARTUP_SOUND, enabled).apply();
     }
 
     static boolean secondScreenAchievements(Context context) {
