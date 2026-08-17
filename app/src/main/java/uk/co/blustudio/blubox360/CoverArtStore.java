@@ -10,7 +10,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 
 final class CoverArtStore {
-    private static final int MAX_EDGE = 1600;
+    private static final int MAX_EDGE = 2048;
+    private static final float FRONT_COVER_ASPECT = 0.71f;
 
     private CoverArtStore() { }
 
@@ -44,8 +45,8 @@ final class CoverArtStore {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         options.inSampleSize = 1;
-        while (bounds.outWidth / options.inSampleSize > MAX_EDGE * 2
-                || bounds.outHeight / options.inSampleSize > MAX_EDGE * 2) {
+        while (bounds.outWidth / options.inSampleSize > MAX_EDGE * 3
+                || bounds.outHeight / options.inSampleSize > MAX_EDGE * 3) {
             options.inSampleSize *= 2;
         }
         Bitmap decoded;
@@ -55,21 +56,35 @@ final class CoverArtStore {
         }
         if (decoded == null) throw new IllegalArgumentException("The cover image could not be decoded");
 
-        Bitmap output = decoded;
+        Bitmap prepared = decoded;
         int width = decoded.getWidth();
         int height = decoded.getHeight();
-        int largest = Math.max(width, height);
+
+        // Full retail DVD scans commonly contain back + spine + front in one wide image.
+        // BluBox displays the front of the Xbox 360 case, so take the right-most front
+        // panel automatically while leaving normal portrait/front-only artwork untouched.
+        if (width > Math.round(height * 1.15f)) {
+            int frontWidth = Math.min(width, Math.max(1, Math.round(height * FRONT_COVER_ASPECT)));
+            int startX = Math.max(0, width - frontWidth);
+            Bitmap cropped = Bitmap.createBitmap(decoded, startX, 0, frontWidth, height);
+            if (cropped != decoded) prepared = cropped;
+        }
+
+        Bitmap output = prepared;
+        int preparedWidth = prepared.getWidth();
+        int preparedHeight = prepared.getHeight();
+        int largest = Math.max(preparedWidth, preparedHeight);
         if (largest > MAX_EDGE) {
             float scale = (float) MAX_EDGE / largest;
-            output = Bitmap.createScaledBitmap(decoded,
-                    Math.max(1, Math.round(width * scale)),
-                    Math.max(1, Math.round(height * scale)), true);
+            output = Bitmap.createScaledBitmap(prepared,
+                    Math.max(1, Math.round(preparedWidth * scale)),
+                    Math.max(1, Math.round(preparedHeight * scale)), true);
         }
 
         File destination = file(context, gameId);
         File temporary = new File(folder(context), destination.getName() + ".tmp");
         try (FileOutputStream out = new FileOutputStream(temporary, false)) {
-            if (!output.compress(Bitmap.CompressFormat.JPEG, 92, out)) {
+            if (!output.compress(Bitmap.CompressFormat.JPEG, 94, out)) {
                 throw new IllegalStateException("The cover image could not be saved");
             }
             out.getFD().sync();
@@ -77,7 +92,8 @@ final class CoverArtStore {
             temporary.delete();
             throw t;
         } finally {
-            if (output != decoded) output.recycle();
+            if (output != prepared) output.recycle();
+            if (prepared != decoded) prepared.recycle();
             decoded.recycle();
         }
         File backup = new File(folder(context), destination.getName() + ".bak");
