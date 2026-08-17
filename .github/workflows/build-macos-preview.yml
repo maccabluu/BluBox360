@@ -31,26 +31,29 @@ jobs:
           file macos/CoreProbe/build/blubox-jit-probe
           macos/CoreProbe/build/blubox-jit-probe
 
-      - name: Build Apple Silicon preview
+      - name: Build universal Mac preview
         run: |
           chmod +x macos/build-macos.sh
-          BLUBOX_MAC_TRIPLE=arm64-apple-macosx13.0 \
-          BLUBOX_MAC_VERSION=0.2.0-preview \
-          ./macos/build-macos.sh
+          BLUBOX_MAC_VERSION=0.2.1-preview ./macos/build-macos.sh
 
-      - name: Verify app architecture
+      - name: Verify app and startup
         run: |
-          file 'macos/dist/BluBox 360.app/Contents/MacOS/BluBox360'
-          lipo -info 'macos/dist/BluBox 360.app/Contents/MacOS/BluBox360'
-          codesign --verify --deep --strict --verbose=2 'macos/dist/BluBox 360.app'
+          app='macos/dist/BluBox 360.app'
+          binary="$app/Contents/MacOS/BluBox360"
+          file "$binary"
+          lipo -info "$binary"
+          lipo -archs "$binary" | grep -q arm64
+          lipo -archs "$binary" | grep -q x86_64
+          codesign --verify --deep --strict --verbose=2 "$app"
+          "$binary" --self-test | grep -q 'startup self-test passed'
           shasum -a 256 -c macos/dist/SHA256SUMS.txt
 
       - name: Upload Mac preview build
         uses: actions/upload-artifact@v4
         with:
-          name: BluBox-360-Mac-0.2.0-preview-Apple-Silicon
+          name: BluBox-360-Mac-0.2.1-preview-Universal
           path: |
-            macos/dist/BluBox-360-Mac-0.2.0-preview-Apple-Silicon.zip
-            macos/dist/BluBox-360-Mac-0.2.0-preview-Apple-Silicon.dmg
+            macos/dist/BluBox-360-Mac-0.2.1-preview-Universal.zip
+            macos/dist/BluBox-360-Mac-0.2.1-preview-Universal.dmg
             macos/dist/SHA256SUMS.txt
           if-no-files-found: error
