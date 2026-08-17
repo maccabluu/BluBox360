@@ -33,6 +33,13 @@ jobs:
           set -euo pipefail
           sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
 
+      - name: Set BluBox direct-build version
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -E -i 's/^version_code=.*/version_code=29/' build-direct.sh
+          sed -E -i 's/^version_name=.*/version_name=0.16.2-alpha/' build-direct.sh
+
       - name: Load permanent BluBox signing key
         id: signing
         shell: bash
