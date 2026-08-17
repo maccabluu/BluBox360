@@ -9,9 +9,12 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK_VERSION: '25.2.9519653'
+      ANDROID_CMAKE_VERSION: '3.31.1'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -19,16 +22,52 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+
+      - name: Install Android NDK and CMake for Play core
+        run: |
+          sdkmanager "ndk;${ANDROID_NDK_VERSION}" "cmake;${ANDROID_CMAKE_VERSION}"
+
+      - name: Fetch Play PS2 source
+        run: |
+          git clone --depth 1 --recurse-submodules https://github.com/jpd002/Play-.git "$RUNNER_TEMP/Play"
+
+      - name: Build Play ARM64 libretro core
+        run: |
+          set -euo pipefail
+          CMAKE_PATH="${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}"
+          export PATH="${CMAKE_PATH}/bin:${PATH}"
+          export NINJA_EXE="${CMAKE_PATH}/bin/ninja"
+          export ANDROID_NDK="${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
+          export ANDROID_TOOLCHAIN_FILE="${ANDROID_NDK}/build/cmake/android.toolchain.cmake"
+          cd "$RUNNER_TEMP/Play/build_retro"
+          ./android_build.sh
+          test -f play_libretro_arm64-v8a_android.so
+          mkdir -p "$GITHUB_WORKSPACE/blups2/app/src/main/jniLibs/arm64-v8a"
+          cp play_libretro_arm64-v8a_android.so "$GITHUB_WORKSPACE/blups2/app/src/main/jniLibs/arm64-v8a/libplay_libretro.so"
+
+      - name: Verify packaged native core
+        run: |
+          file blups2/app/src/main/jniLibs/arm64-v8a/libplay_libretro.so
+          readelf -h blups2/app/src/main/jniLibs/arm64-v8a/libplay_libretro.so | grep -q 'AArch64'
+
       - name: Build BluPS2 ARM64 preview
         working-directory: blups2
         run: gradle :app:assembleRelease --stacktrace
+
+      - name: Verify APK contains Play native core
+        run: |
+          apk=blups2/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$apk"
+          unzip -l "$apk" | grep -q 'lib/arm64-v8a/libplay_libretro.so'
+
       - name: Prepare APK
         run: |
-          cp blups2/app/build/outputs/apk/release/app-release-unsigned.apk BluPS2-0.1.0-preview-arm64.apk
-          shasum -a 256 BluPS2-0.1.0-preview-arm64.apk > BluPS2-0.1.0-preview-SHA256.txt
+          cp blups2/app/build/outputs/apk/release/app-release-unsigned.apk BluPS2-0.1.1-preview-arm64.apk
+          shasum -a 256 BluPS2-0.1.1-preview-arm64.apk > BluPS2-0.1.1-preview-SHA256.txt
+
       - uses: actions/upload-artifact@v4
         with:
-          name: BluPS2-0.1.0-preview-arm64
+          name: BluPS2-0.1.1-preview-arm64
           path: |
-            BluPS2-0.1.0-preview-arm64.apk
-            BluPS2-0.1.0-preview-SHA256.txt
+            BluPS2-0.1.1-preview-arm64.apk
+            BluPS2-0.1.1-preview-SHA256.txt
