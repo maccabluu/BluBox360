@@ -119,18 +119,28 @@ wrap_xenia_engine() {
   fi
 
   mv "$exec_path" "$real_path"
+
+  # The original executable was signed as the app's main executable. Moving it
+  # invalidates that signature relationship, so sign it again as a standalone
+  # executable while restoring the JIT permissions Xenia needs for PPC code.
+  codesign --force --sign - \
+    --entitlements "$root/XeniaEngine.entitlements" \
+    "$real_path"
+
   clang -O2 -arch "$arch" -mmacosx-version-min=15.0 \
     "$root/EngineLauncher/blubox_xenia_launcher.c" \
     -o "$exec_path"
   chmod +x "$exec_path" "$real_path"
   codesign --force --sign - "$exec_path"
 
-  # Re-seal the app after adding the wrapper. The moved original Xenia binary
-  # keeps its own upstream code signature and JIT entitlements.
+  # Re-seal the modified Xenia app after both nested executables are valid.
   codesign --force --sign - "$engine_app"
 
   lipo -archs "$exec_path" | grep -q "$arch"
   lipo -archs "$real_path" | grep -q "$arch"
+  codesign --verify --strict --verbose=2 "$real_path"
+  codesign -d --entitlements :- "$real_path" 2>&1 | grep -q 'com.apple.security.cs.allow-jit'
+
   if [[ "$(uname -m)" == "$arch" ]]; then
     "$exec_path" --blubox-self-test | grep -q 'BluBox Xenia launch sanitizer ready'
   elif [[ "$arch" == "x86_64" ]] && /usr/bin/arch -x86_64 /usr/bin/true >/dev/null 2>&1; then
