@@ -1,0 +1,117 @@
+name: Publish BluBox 360 v0.14.0 alpha
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.14.0-alpha.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out BluBox 360
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36 build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+
+      - name: Prepare alpha signing key
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.BLUBOX_ALPHA_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.BLUBOX_ALPHA_KEYSTORE_PASS }}
+          KEY_PASS: ${{ secrets.BLUBOX_ALPHA_KEY_PASS }}
+          KEY_ALIAS: ${{ secrets.BLUBOX_ALPHA_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/blubox-alpha.jks"
+          if [[ -n "${KEYSTORE_B64:-}" && -n "${KEYSTORE_PASS:-}" && -n "${KEY_PASS:-}" ]]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+            alias_name="${KEY_ALIAS:-androiddebugkey}"
+            echo "mode=stored" >> "$GITHUB_OUTPUT"
+          else
+            store_pass='BluBoxAlpha0140!'
+            alias_name='bluboxalpha'
+            keytool -genkeypair -noprompt \
+              -keystore "$keystore" \
+              -storepass "$store_pass" \
+              -keypass "$store_pass" \
+              -alias "$alias_name" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=BluBox 360 Alpha, OU=Blu Studio, O=Blu Studio, L=Wigan, C=GB"
+            KEYSTORE_PASS="$store_pass"
+            KEY_PASS="$store_pass"
+            echo "mode=temporary" >> "$GITHUB_OUTPUT"
+          fi
+          echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
+          echo "alias=$alias_name" >> "$GITHUB_OUTPUT"
+          printf '%s' "$KEYSTORE_PASS" > "$RUNNER_TEMP/blubox-store-pass"
+          printf '%s' "$KEY_PASS" > "$RUNNER_TEMP/blubox-key-pass"
+
+      - name: Build signed ARM64 APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./build-direct.sh
+          BLUBOX_KEYSTORE='${{ steps.signing.outputs.keystore }}' \
+          BLUBOX_KEYSTORE_PASS="$(cat "$RUNNER_TEMP/blubox-store-pass")" \
+          BLUBOX_KEY_PASS="$(cat "$RUNNER_TEMP/blubox-key-pass")" \
+          BLUBOX_KEY_ALIAS='${{ steps.signing.outputs.alias }}' \
+          ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+          ./build-direct.sh
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/BluBox-360-0.14.0-alpha-arm64.apk"
+          test -f "$apk"
+          sha256sum "$apk" | sed 's#app/build/outputs/apk/release/##' > SHA256SUMS.txt
+          {
+            echo "BluBox 360 0.14.0-alpha"
+            echo "Signing mode: ${{ steps.signing.outputs.mode }}"
+            "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --print-certs "$apk"
+          } > SIGNING.txt
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v0.14.0-alpha"
+          apk="app/build/outputs/apk/release/BluBox-360-0.14.0-alpha-arm64.apk"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" SHA256SUMS.txt SIGNING.txt \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" \
+              --title "BluBox 360 0.14.0 public alpha" \
+              --notes-file RELEASE_NOTES_0.14.0-alpha.md \
+              --prerelease
+          else
+            gh release create "$tag" "$apk" SHA256SUMS.txt SIGNING.txt \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "BluBox 360 0.14.0 public alpha" \
+              --notes-file RELEASE_NOTES_0.14.0-alpha.md \
+              --prerelease
+          fi
