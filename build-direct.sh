@@ -8,6 +8,10 @@ if [[ -z "$sdk_root" ]]; then
   exit 1
 fi
 
+version_code=26
+version_name=0.15.2-alpha
+version_label=${version_name%-alpha}
+
 build_tools_version=${ANDROID_BUILD_TOOLS_VERSION:-36.0.0}
 tools_dir="$sdk_root/build-tools/$build_tools_version"
 android_jar="$sdk_root/platforms/android-36/android.jar"
@@ -23,12 +27,26 @@ mkdir -p "$project_root/build"
 work_dir=$(mktemp -d "$project_root/build/direct.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT
 mkdir -p "$work_dir/gen" "$work_dir/classes" "$work_dir/dex" \
-  "$work_dir/assets" "$work_dir/package/lib/arm64-v8a"
+  "$work_dir/assets" "$work_dir/package/lib/arm64-v8a" "$work_dir/app-java"
 
 cp -a "$project_root/emulator-core/src/main/assets/." "$work_dir/assets/"
 cp -a "$project_root/app/src/main/assets/." "$work_dir/assets/"
 cp -a "$project_root/emulator-core/src/main/jniLibs/arm64-v8a/." \
   "$work_dir/package/lib/arm64-v8a/"
+cp -a "$project_root/app/src/main/java/." "$work_dir/app-java/"
+
+# Release builds compile from a temporary source copy. Replace stale UI/build-floor
+# version text there so the APK always reports the exact package version being built.
+main_activity="$work_dir/app-java/uk/co/blustudio/blubox360/MainActivity.java"
+update_activity="$work_dir/app-java/uk/co/blustudio/blubox360/UpdateActivity.java"
+if [[ -f "$main_activity" ]]; then
+  sed -E -i "s/BluBox 360 [0-9]+\.[0-9]+\.[0-9]+ public alpha/BluBox 360 ${version_label} public alpha/g" \
+    "$main_activity"
+fi
+if [[ -f "$update_activity" ]]; then
+  sed -E -i "s/private static final String BUILD_VERSION_FLOOR = \"[^\"]+\";/private static final String BUILD_VERSION_FLOOR = \"${version_name}\";/" \
+    "$update_activity"
+fi
 
 "$tools_dir/aapt2" compile --dir "$project_root/app/src/main/res" \
   -o "$work_dir/app-res.zip"
@@ -41,8 +59,8 @@ cp -a "$project_root/emulator-core/src/main/jniLibs/arm64-v8a/." \
   -I "$android_jar" \
   --min-sdk-version 29 \
   --target-sdk-version 35 \
-  --version-code 25 \
-  --version-name 0.15.1-alpha \
+  --version-code "$version_code" \
+  --version-name "$version_name" \
   --replace-version \
   --java "$work_dir/gen" \
   --extra-packages xendroid.compose.core \
@@ -50,7 +68,7 @@ cp -a "$project_root/emulator-core/src/main/jniLibs/arm64-v8a/." \
   "$work_dir/app-res.zip" "$work_dir/core-res.zip"
 
 mapfile -t java_sources < <(find \
-  "$project_root/app/src/main/java" \
+  "$work_dir/app-java" \
   "$project_root/emulator-core/src/main/java" \
   "$work_dir/gen" \
   -type f -name '*.java' | sort)
@@ -75,7 +93,7 @@ if [[ -n "${BLUBOX_KEYSTORE:-}" ]]; then
   : "${BLUBOX_KEYSTORE_PASS:?Set BLUBOX_KEYSTORE_PASS when signing}"
   : "${BLUBOX_KEY_PASS:?Set BLUBOX_KEY_PASS when signing}"
   export BLUBOX_KEYSTORE_PASS BLUBOX_KEY_PASS
-  output_apk="$output_dir/BluBox-360-0.15.1-alpha-arm64.apk"
+  output_apk="$output_dir/BluBox-360-${version_name}-arm64.apk"
   "$tools_dir/apksigner" sign \
     --ks "$BLUBOX_KEYSTORE" \
     --ks-key-alias "${BLUBOX_KEY_ALIAS:-androiddebugkey}" \
@@ -88,7 +106,7 @@ if [[ -n "${BLUBOX_KEYSTORE:-}" ]]; then
     --out "$output_apk" "$work_dir/aligned.apk"
   "$tools_dir/apksigner" verify --verbose "$output_apk"
 else
-  output_apk="$output_dir/BluBox-360-0.15.1-alpha-arm64-unsigned.apk"
+  output_apk="$output_dir/BluBox-360-${version_name}-arm64-unsigned.apk"
   cp "$work_dir/aligned.apk" "$output_apk"
 fi
 
