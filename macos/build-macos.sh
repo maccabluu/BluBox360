@@ -8,7 +8,7 @@ app="$dist/BluBox 360.app"
 contents="$app/Contents"
 macos="$contents/MacOS"
 resources="$contents/Resources"
-version=${BLUBOX_MAC_VERSION:-3.0.1-preview}
+version=${BLUBOX_MAC_VERSION:-3.0.2-preview}
 arm_triple=${BLUBOX_MAC_ARM_TRIPLE:-arm64-apple-macosx15.0}
 intel_triple=${BLUBOX_MAC_INTEL_TRIPLE:-x86_64-apple-macosx15.0}
 xenia_arm_app=${BLUBOX_XENIA_ARM_APP:-}
@@ -99,10 +99,11 @@ if [[ -n "$xenia_x64_app" && -d "$xenia_x64_app" ]]; then
   ditto "$xenia_x64_app" "$resources/Engines/x86_64/Xenia-Edge.app"
 fi
 
-# BluBox 3.0.1 hotfix: the Swift shell has more settings than the current
-# Xenia-Edge command-line parser accepts. Put a tiny architecture-matched
-# launcher in front of each engine. It forwards only options verified in the
-# current Xenia macOS source and ignores unsupported BluBox-only options.
+# BluBox 3.0.2 keeps the 3.0.1 launch sanitizer while adding the native app updater.
+# The Swift shell has more settings than the current Xenia-Edge command-line parser
+# accepts. Put a tiny architecture-matched launcher in front of each engine. It
+# forwards only options verified in the current Xenia macOS source and ignores
+# unsupported BluBox-only options.
 wrap_xenia_engine() {
   local engine_app="$1"
   local arch="$2"
@@ -171,9 +172,9 @@ cat > "$contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>3.0.1</string>
+    <string>3.0.2</string>
     <key>CFBundleVersion</key>
-    <string>31</string>
+    <string>32</string>
     <key>CFBundleIconFile</key>
     <string>BluBox.icns</string>
     <key>LSMinimumSystemVersion</key>
@@ -207,7 +208,7 @@ ln -s /Applications "$staging/Applications"
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip_path"
 hdiutil create \
-  -volname "BluBox 360 3.0.1" \
+  -volname "BluBox 360 3.0.2" \
   -srcfolder "$staging" \
   -ov \
   -format UDZO \
@@ -216,7 +217,7 @@ hdiutil create \
 rm -rf "$staging"
 shasum -a 256 "$zip_path" "$dmg_path" > "$dist/SHA256SUMS.txt"
 
-echo "Built BluBox 360 macOS 3.0.1 universal preview:"
+echo "Built BluBox 360 macOS 3.0.2 universal preview:"
 echo "  $zip_path"
 echo "  $dmg_path"
 echo "  diagnostic core: $core_universal"
