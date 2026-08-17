@@ -37,6 +37,16 @@ struct GameEntry: Identifiable, Codable, Hashable {
         return ext.isEmpty ? "GAME" : ext
     }
 
+    var fileSizeText: String {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+              let size = values.fileSize else { return "Unknown size" }
+        return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+    }
+
+    var folderText: String {
+        url.deletingLastPathComponent().lastPathComponent
+    }
+
     var coverURL: URL? {
         guard let coverPath, FileManager.default.fileExists(atPath: coverPath) else {
             return nil
@@ -49,7 +59,7 @@ struct GameEntry: Identifiable, Codable, Hashable {
 final class GameLibrary: ObservableObject {
     @Published private(set) var games: [GameEntry] = []
     @Published var selectedGame: GameEntry?
-    @Published var statusText = "BluBox 360 macOS preview ready"
+    @Published var statusText = "BluBox 360 macOS 2.2 ready"
 
     private let libraryKey = "BluBoxMacGameLibraryV2"
     private let legacyKey = "BluBoxMacGamePaths"
@@ -92,7 +102,10 @@ final class GameLibrary: ObservableObject {
         panel.resolvesAliases = true
 
         guard panel.runModal() == .OK, let folder = panel.url else { return }
+        scanFolder(folder)
+    }
 
+    func scanFolder(_ folder: URL) {
         let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey]
         guard let enumerator = FileManager.default.enumerator(
             at: folder,
@@ -105,8 +118,7 @@ final class GameLibrary: ObservableObject {
 
         var matches: [URL] = []
         for case let fileURL as URL in enumerator {
-            let ext = fileURL.pathExtension.lowercased()
-            if supportedExtensions.contains(ext) {
+            if supportedExtensions.contains(fileURL.pathExtension.lowercased()) {
                 matches.append(fileURL)
             }
         }
@@ -134,6 +146,17 @@ final class GameLibrary: ObservableObject {
             : "Added \(added) game\(added == 1 ? "" : "s") to the Mac library."
     }
 
+    func refreshLibrary() {
+        let before = games.count
+        games.removeAll { !FileManager.default.fileExists(atPath: $0.path) }
+        sortLibrary()
+        save()
+        let removed = before - games.count
+        statusText = removed == 0
+            ? "Library refreshed. All game files were found."
+            : "Library refreshed and removed \(removed) missing entr\(removed == 1 ? "y" : "ies")."
+    }
+
     func remove(_ game: GameEntry) {
         games.removeAll { $0.id == game.id }
         if selectedGame?.id == game.id { selectedGame = nil }
@@ -145,6 +168,9 @@ final class GameLibrary: ObservableObject {
         guard let index = games.firstIndex(where: { $0.id == game.id }) else { return }
         games[index].isFavorite.toggle()
         save()
+        statusText = games[index].isFavorite
+            ? "Added \(game.name) to Favorites."
+            : "Removed \(game.name) from Favorites."
     }
 
     func markPlayed(_ game: GameEntry) {
@@ -196,15 +222,7 @@ final class GameLibrary: ObservableObject {
     }
 
     private func coverDirectory() throws -> URL {
-        let support = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let folder = support
-            .appendingPathComponent("BluBox 360", isDirectory: true)
-            .appendingPathComponent("Covers", isDirectory: true)
+        let folder = MacDataPaths.root().appendingPathComponent("Covers", isDirectory: true)
         try FileManager.default.createDirectory(
             at: folder,
             withIntermediateDirectories: true,
