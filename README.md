@@ -10,32 +10,37 @@ and Adreno devices, with the AYN Thor Pro as the main development target.
 
 ## Latest release
 
-### BluBox 360 0.16.2 public alpha
+### BluBox 360 0.16.3 public alpha
 
-[Download BluBox 360 0.16.2-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.16.2-alpha/BluBox-360-0.16.2-alpha-arm64.apk)
+[Download BluBox 360 0.16.3-alpha for ARM64 Android](https://github.com/maccabluu/BluBox360/releases/download/v0.16.3-alpha/BluBox-360-0.16.3-alpha-arm64.apk)
 
 Android 10 or newer, ARM64, and Vulkan are required.
 
 APK SHA-256:
-`6a13bf029320f97d10106b6b6eacbe99628c1b6471ef9baa9935f681004f05b0`
+`b8b3b6731b8c53e44522fd00579d6cec0191efa73d109ef8d55e3e2ed5ef566d`
 
-[View the v0.16.2-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.16.2-alpha)
+[View the v0.16.3-alpha release](https://github.com/maccabluu/BluBox360/releases/tag/v0.16.3-alpha)
 
-## What changed in 0.16.2
+## What changed in 0.16.3
 
-- Replaced the old green plastic Xbox 360 case presentation with clean flat front-cover artwork.
-- Removed the fake case spine, top banner, green border, and 3D cover tilt.
-- Cover artwork now fills more of each game tile with a small neutral edge and shadow.
-- Recently Played and All Games use the same flat-cover renderer.
-- Imported portrait covers and retail wraparound scans continue to work.
-- Wide wraparound scans are still cropped automatically to the front cover.
-- HD+ graphics and the updater fixes from 0.16.1 remain included.
+- Added **Settings > App > Check for updates**.
+- Automatic update checks keep the existing 15-minute cooldown.
+- Manual update checks run immediately and report when BluBox is already current.
+- Added Smart Heat Guard using Android thermal status and thermal headroom.
+- When Android reports thermal pressure at game launch, BluBox can apply the low-heat preset automatically.
+- A 60 FPS target can step down to a 30 FPS safety ceiling when the device is already approaching thermal throttling.
+- Shader creation is reduced to one worker under thermal pressure.
+- The existing severe-heat shutdown protection remains enabled during gameplay.
+- Fable II keeps its 24 FPS safety ceiling.
 - Uses the permanent BluBox signing certificate for normal in-place updates.
 
 ## Built-in updates
 
-BluBox checks the official GitHub Releases feed after launch. When a genuinely
-newer canonical alpha is available, the app offers:
+BluBox checks the official GitHub Releases feed after launch. Automatic checks
+use a 15-minute cooldown. **Settings > App > Check for updates** runs a manual
+check immediately.
+
+When a genuinely newer canonical alpha is available, the app offers:
 
 - **Update now** to download the APK inside BluBox.
 - **What's new** to read the release notes.
@@ -46,20 +51,41 @@ supplied. Android's Package Installer then handles the final installation
 confirmation.
 
 Version 0.15.0 established the permanent BluBox release certificate. Versions
-0.15.1, 0.15.2, 0.16.0, 0.16.1, and 0.16.2 use the same certificate. Future
-releases must keep using this certificate so Android accepts them as normal
-updates and keeps installed BluBox data.
+0.15.1, 0.15.2, 0.16.0, 0.16.1, 0.16.2, and 0.16.3 use the same certificate.
+Future releases must keep using this certificate so Android accepts them as
+normal updates and keeps installed BluBox data.
 
 ## Install or update
 
-1. Download `BluBox-360-0.16.2-alpha-arm64.apk`.
-2. If you already have 0.15.0 or newer permanent-signed BluBox installed, install 0.16.2 directly over it.
+1. Download `BluBox-360-0.16.3-alpha-arm64.apk`.
+2. If you already have 0.15.0 or newer permanent-signed BluBox installed, install 0.16.3 directly over it.
 3. Android should treat it as an update because the permanent signing certificate matches.
-4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.16.2 public alpha`.
+4. Open BluBox and confirm **Settings > App** shows `BluBox 360 0.16.3 public alpha`.
 5. Keep your profiles and saves backed up while testing alpha builds.
 
 Moving directly from 0.14.0 still requires the one final uninstall because
 0.14.0 used a temporary signing certificate.
+
+## Smart Heat Guard
+
+Low Heat Mode keeps native rendering, reduced shader work, and maximum-clock
+requests disabled. In 0.16.3, Smart Heat Guard also checks Android thermal status
+and thermal headroom when a game launches. If Android reports that the device is
+already approaching thermal throttling, BluBox can apply the cooler preset,
+reduce a 60 FPS target to 30 FPS, and use one shader worker.
+
+The existing in-game thermal guard continues to close the game if Android
+reports severe heat. Smart Heat Guard reduces sustained load, but Xbox 360
+emulation is demanding and no software setting can guarantee a handheld stays
+completely cool in every game.
+
+## Xbox services
+
+BluBox currently uses local Xbox 360 profiles, local achievement tracking, and
+local gamerscore. Real Xbox network sign-in and official Xbox achievement syncing
+are not enabled in 0.16.3. Microsoft Xbox services require an approved Partner
+Center title configuration and service identifiers before a title can authenticate
+users or update Xbox achievements.
 
 ## HD+ graphics
 
@@ -99,8 +125,8 @@ return to the artwork found inside the game file.
 - FXAA, CAS/FSR, anisotropic filtering, shader-worker controls, and pipeline preloading.
 - Rootless AdrenoTools-compatible Turnip driver import on supported Adreno devices.
 - Selectable 30 FPS or 60 FPS target for compatible games.
+- Smart Heat Guard, Low Heat Mode, and Android thermal protection.
 - Fable II safety preset with a 24 FPS ceiling.
-- Low Heat Mode and Android thermal protection.
 - ClusterTune support for per-app CPU and GPU profiles.
 - Xbox 360 controller mapping for AYN and standard Android gamepads.
 - Controller profiles, macros, stick tuning, trigger tuning, vibration, and Harry Potter precision aiming.
@@ -113,6 +139,7 @@ return to the artwork found inside the game file.
 - Mods tab for importing and managing Xenia `.patch.toml` files.
 - Portable BluBox backup and restore for profiles, saves, artwork, and settings.
 - Original BluBox startup chime and optional boot animation.
+- Automatic and manual in-app update checks.
 
 ## Profile photos
 
