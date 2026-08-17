@@ -116,6 +116,7 @@ public class BootActivity extends Activity {
         if (opened || isFinishing()) return;
         opened = true;
         startActivity(new Intent(this, MainActivity.class));
+        startActivity(new Intent(this, UpdateActivity.class));
         finish();
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
     }
